@@ -5,6 +5,7 @@
   border-radius: 5px;
   margin-bottom: @hintbox-spacing-vertical;
   background-color: @hintbox-background-color;
+  line-height: 1.5;
 
   a {
     color: @hintbox-link-color !important;
@@ -16,11 +17,6 @@
 
   pre {
     background-color: @hintbox-pre-bg;
-  }
-
-  &-label,
-  &-label[ng-click] {
-    cursor: help;
   }
 
   ul, ol {
@@ -58,3 +54,8 @@
     }
   }
 }
+
+  .hintbox-label,
+  .hintbox-label[ng-click] {
+    cursor: help;
+  }

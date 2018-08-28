@@ -1,6 +1,6 @@
-var _ = require('lodash');
+import _ from 'lodash';
 
-module.exports = {
+export default {
   'rows': [
     {
       'label': '0.0-1000.0: bytes',
@@ -8,6 +8,7 @@ module.exports = {
       'yAxisLabel': 'Count of documents',
       'series': [
         {
+          'label': 'Count',
           'values': [
             {
               'x': 'jpg',
@@ -53,6 +54,7 @@ module.exports = {
       'yAxisLabel': 'Count of documents',
       'series': [
         {
+          'label': 'Count',
           'values': [
             {
               'x': 'jpg',

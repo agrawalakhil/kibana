@@ -1,15 +1,29 @@
-describe('Table Group class', function () {
-  var TableGroup;
-  var expect = require('expect.js');
-  var ngMock = require('ngMock');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  beforeEach(ngMock.module('kibana'));
-  beforeEach(ngMock.inject(function (Private, $injector) {
-    TableGroup = Private(require('ui/agg_response/tabify/_table_group'));
-  }));
+import expect from 'expect.js';
+import { TabifyTableGroup } from '../_table_group';
+
+describe('Table Group class', function () {
 
   it('exposes tables array and empty aggConfig, key and title', function () {
-    var tableGroup = new TableGroup();
+    const tableGroup = new TabifyTableGroup();
     expect(tableGroup.tables).to.be.an('array');
     expect(tableGroup.aggConfig).to.be(null);
     expect(tableGroup.key).to.be(null);

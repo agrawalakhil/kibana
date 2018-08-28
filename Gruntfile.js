@@ -1,76 +1,31 @@
-require('babel/register')(require('./src/optimize/babelOptions').node);
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+require('./src/setup_node_env');
 
 module.exports = function (grunt) {
   // set the config once before calling load-grunt-config
   // and once during so that we have access to it via
   // grunt.config.get() within the config files
-  var config = {
-    pkg: grunt.file.readJSON('package.json'),
+  const config = {
     root: __dirname,
-    src: __dirname + '/src',
-    build: __dirname + '/build', // temporary build directory
-    plugins: __dirname + '/src/plugins',
-    server: __dirname + '/src/server',
-    target: __dirname + '/target', // location of the compressed build targets
-    testUtilsDir: __dirname + '/src/testUtils',
-    configFile: __dirname + '/src/config/kibana.yml',
-
-    karmaBrowser: (function () {
-      if (grunt.option('browser')) {
-        return grunt.option('browser');
-      }
-
-      switch (require('os').platform()) {
-        case 'win32':
-          return 'IE';
-        case 'darwin':
-          return 'Chrome';
-        default:
-          return 'Firefox';
-      }
-    }()),
-
-    nodeVersion: grunt.file.read('.node-version').trim(),
-
-    meta: {
-      banner: '/*! <%= package.name %> - v<%= package.version %> - ' +
-        '<%= grunt.template.today("yyyy-mm-dd") %>\n' +
-        '<%= package.homepage ? " * " + package.homepage + "\\n" : "" %>' +
-        ' * Copyright (c) <%= grunt.template.today("yyyy") %> <%= package.author.company %>;' +
-        ' Licensed <%= package.license %> */\n'
-    },
-
-    lintThese: [
-      'Gruntfile.js',
-      '<%= root %>/tasks/**/*.js',
-      '<%= root %>/test/**/*.js',
-      '<%= src %>/**/*.js',
-      '!<%= src %>/fixtures/**/*.js',
-      '!<%= root %>/test/fixtures/scenarios/**/*.js'
-    ],
-    deepModules: {
-      'caniuse-db': '1.0.30000265',
-      'chalk': '1.1.0',
-      'glob': '4.5.3',
-      'har-validator': '1.8.0',
-      'json5': '0.4.0',
-      'loader-utils': '0.2.11',
-      'micromatch': '2.2.0',
-      'postcss-normalize-url': '2.1.1',
-      'postcss-reduce-idents': '1.0.2',
-      'postcss-unique-selectors': '1.0.0',
-      'postcss-minify-selectors': '1.4.6',
-      'postcss-single-charset': '0.3.0',
-      'regenerator': '0.8.36'
-    }
   };
-
-  grunt.config.merge(config);
-
-  config.userScriptsDir = __dirname + '/build/userScripts';
-  // ensure that these run first, other configs need them
-  config.services = require('./tasks/config/services')(grunt);
-  config.platforms = require('./tasks/config/platforms')(grunt);
 
   grunt.config.merge(config);
 
@@ -80,11 +35,10 @@ module.exports = function (grunt) {
     init: true,
     config: config,
     loadGruntTasks: {
-      pattern: ['grunt-*', '@*/grunt-*', 'gruntify-*', '@*/gruntify-*', 'intern']
+      pattern: ['grunt-*', '@*/grunt-*', 'gruntify-*', '@*/gruntify-*']
     }
   });
 
   // load task definitions
   grunt.task.loadTasks('tasks');
-  grunt.task.loadTasks('tasks/build');
 };

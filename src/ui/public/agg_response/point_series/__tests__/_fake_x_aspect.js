@@ -1,25 +1,45 @@
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import expect from 'expect.js';
+import ngMock from 'ng_mock';
+import { VisProvider } from '../../../vis';
+import { AggConfig } from '../../../vis/agg_config';
+import { AggType } from '../../../agg_types/agg_type';
+import { PointSeriesFakeXAxisProvider } from '../_fake_x_aspect';
+
 describe('makeFakeXAspect', function () {
 
-  var makeFakeXAspect;
-  var Vis;
-  var AggType;
-  var AggConfig;
-  var indexPattern;
-  var expect = require('expect.js');
-  var ngMock = require('ngMock');
+  let makeFakeXAspect;
+  let Vis;
+  let indexPattern;
 
   beforeEach(ngMock.module('kibana'));
   beforeEach(ngMock.inject(function (Private) {
-    Vis = Private(require('ui/Vis'));
-    AggConfig = Private(require('ui/Vis/AggConfig'));
-    AggType = Private(require('ui/agg_types/AggType'));
-    indexPattern = Private(require('ui/Vis'));
-    makeFakeXAspect = Private(require('ui/agg_response/point_series/_fake_x_aspect'));
+    Vis = Private(VisProvider);
+    indexPattern = Private(VisProvider);
+    makeFakeXAspect = Private(PointSeriesFakeXAxisProvider);
   }));
 
   it('creates an object that looks like an aspect', function () {
-    var vis = new Vis(indexPattern, { type: 'histogram' });
-    var aspect = makeFakeXAspect(vis);
+    const vis = new Vis(indexPattern, { type: 'histogram' });
+    const aspect = makeFakeXAspect(vis);
 
     expect(aspect)
       .to.have.property('i', -1)

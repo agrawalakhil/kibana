@@ -1,23 +1,8 @@
 // generic mixins
 @import (reference) "./mixins";
 @import (reference) "./variables";
-@import (reference) "~bootstrap/less/bootstrap";
-
-html,
-body {
-  .flex-parent();
-  height: 100%;
-  margin: 0px;
-}
-
-label > small {
-  font-weight: normal;
-}
-
-button {
-  // buttons have a stupid 1990's default look which should be disabled
-  .btn();
-}
+@import (reference) "~ui/styles/bootstrap/bootstrap";
+@import "./react-input-range";
 
 .small {
   font-size: 0.9em !important;
@@ -54,46 +39,51 @@ button {
   font-family: @font-family-monospace;
 }
 
-code {
-  word-break: break-all;
-  word-wrap: break-word;
-}
-
 ul.navbar-inline li {
   display: inline;
 }
 
-.tooltip {
+.bsTooltip {
   font-size: 8pt;
   font-weight: normal;
   opacity: 90%;
+}
 
-  &-inner {
+  .bsTooltip-inner {
     word-break: normal;
     word-wrap: break-word;
     white-space: normal;
   }
-}
 
 .content {
-  .flex-parent();
-  position: relative;
-  z-index: 0;
+  display: flex;
+  flex-flow: row nowrap;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 
   > nav {
-    position: relative;
-    z-index: 1;
+    z-index: @localNavDepth;
 
     .navbar-right {
-      margin-right: 0;
+      margin-right: 0 !important;
     }
   }
 }
 
 .application {
-  .flex-parent(@shrink: 0);
   position: relative;
   z-index: 0;
+  background-color: @white;
+  display: flex;
+  flex-grow: 1;
+  flex-shrink: 0;
+  flex-basis: auto;
+  flex-direction: column;
+
+  > * {
+    flex-shrink: 0;
+  }
 }
 
 .top-fixed {
@@ -104,7 +94,7 @@ ul.navbar-inline li {
 .checkbox label {
   display: flex;
   align-items: center;
-  padding-left: 0;
+  padding-left: 0 !important;
 
   input[type="checkbox"] {
     float: none;
@@ -124,28 +114,44 @@ notifications {
   margin-bottom: 0px!important;
 }
 
-a {
-  // overriden by next rule for a tags that actually have an href
-  cursor: default;
-}
-
-[ng-click], [clip-copy], [href], [confirm-click] {
-  cursor: pointer;
-}
-
+.application,
 .app-container {
   > * {
     position: relative;
-    z-index: 0;
+  }
+
+  .kibana-nav-options {
+    padding-bottom: 0;
+    padding-right: 0px;
+
+    kbn-global-timepicker {
+      line-height: 20px;
+    }
+
+    .kibana-nav-actions {
+      margin-left: auto;
+      padding-right: 0;
+      line-height: 20px;
+    }
   }
 
   > config {
     z-index: 1;
   }
+  > navbar { padding-bottom: 4px; }
+  > kbn-top-nav { z-index: @localNavDepth; }
 
   > nav,
   > navbar {
     z-index: 2 !important;
+  }
+}
+
+// SASSTODO: Make sure these colors convert to theme variables
+.tab-dashboard.theme-dark {
+  .kibana-nav-actions .active {
+    background-color: @gray3;
+    color: @white;
   }
 }
 
@@ -161,61 +167,14 @@ a {
     &:not(.pull-right):first-child {
       // This is how .navbar-brand accomplishes it's solid placement
       margin-left: -15px;
+      margin-top: 4px;
     }
   }
 }
 
-.navbtn {
-  .button-variant(@navbar-default-color; @navbar-default-bg; @navbar-default-border);
-}
-
-.navbtn-inverse {
-  .button-variant(@navbar-default-color; @navbar-default-bg; @navbar-default-border);
-}
-
-// right section of the main nav base
-.navbar-static-top .navbar-right {
-  font-size: @font-size-small;
-
-  .loading-spinner {
-    color: @navbar-inverse-brand-hover-color;
-    vertical-align: middle;
-  }
-}
-
-.navbar-timepicker {
-  > li > a {
-    padding-left: 7px !important;
-    padding-right: 7px !important;
-  }
-
-  &-time-desc > .fa-clock-o {
+  .navbar-timepicker-time-desc > .fa-clock-o {
     padding-right: 5px;
   }
-
-  .fa {
-    font-size: 16px;
-    vertical-align: middle;
-  }
-}
-
-kbn-info i {
-  cursor: help;
-}
-
-.kbn-timepicker .btn-default {
-  background: transparent;
-  color: @text-color;
-  border: 0px;
-  box-shadow: none;
-  text-shadow: none;
-}
-
-.kbn-timepicker .btn-info {
-  .button-variant(@btn-info-color; @btn-info-bg; @btn-info-border);
-  .text-info { color: @btn-info-color; }
-  text-shadow: none;
-}
 
 .kbn-timepicker .refresh-interval {
   padding: 0.2em 0.4em;
@@ -223,8 +182,8 @@ kbn-info i {
 }
 
 .kbn-timepicker .refresh-interval-active {
-  background-color: @btn-info-bg;
-  color: @btn-info-color;
+  background-color: @brand-info;
+  color: @white;
 }
 
 //== Table
@@ -236,8 +195,18 @@ kbn-table, .kbn-table {
     white-space: nowrap;
     padding-right: 10px;
 
+    .table-header-move {
+      border: none;
+      background: none;
+      padding: 0;
+    }
+
     .table-header-move, .table-header-sortchange {
-      visibility: hidden;
+      opacity: 0;
+
+      &:focus {
+        opacity: 1;
+      }
     }
 
     .fa {
@@ -248,120 +217,86 @@ kbn-table, .kbn-table {
 
   th:hover {
     .table-header-move, .table-header-sortchange {
-      visibility: visible;
+      opacity: 1;
     }
-  }
-
-}
-
-//== Generic Table
-table {
-  td .fa {
-    // font-awesome's override of the line-height usually doesn't
-    // cauase problems, but in the table it pushes the icon to the
-    // top of the row
-    line-height: @line-height-base;
   }
 }
 
 //== SavedObjectFinder
-saved-object-finder {
-  .form-group {
-    margin-bottom: 0;
-    input {
-      .border-bottom-radius(0);
-    }
+saved-object-finder,
+paginated-selectable-list {
+
+  .list-sort-button {
+    .border-top-radius(0) !important;
+    border: none;
+    padding: 8px 15px;
+    font-weight: normal;
+    background-color: @kibanaGray6;
   }
 
-  .list-group-item {
-    a {
-      i {
-        color: @saved-object-finder-icon-color !important;
-      }
-
-      color: @saved-object-finder-link-color !important;
+  ul.li-striped {
+    li {
+      border: none;
     }
 
-    &:first-child {
-      .border-top-radius(0) !important;
+    li:nth-child(even) {
+      background-color: @kibanaGray6;
     }
 
-    &.list-group-no-results p {
-      margin-bottom: 0 !important;
-    }
-  }
-
-  div.finder-form {
-    position: relative;
-
-    &-options {
-      .flex-parent();
-      flex-direction: row;
-      justify-content: flex-end;
-    }
-  }
-
-  span.finder-hit-count {
-    position: absolute;
-    right: 10px;
-    top: 25px;
-    font-size: 0.85em;
-  }
-
-  .finder-options {
-    max-height: 300px;
-    overflow: auto;
-    padding: 0;
-    .border-top-radius(0);
-
-    // replace the padding that was originally on the outer well
-    > * {
-      padding: @padding-base-vertical @padding-base-horizontal;
-      margin: 0;
+    li:nth-child(odd) {
+      background-color: @white;
     }
 
-    // enable bigger backgrounds for "active" elements
-    > li {
-      margin-top: -ceil(@padding-base-vertical / 2);
+    .paginate-heading {
+      font-weight: normal;
+      color: @kibanaGray1;
+    }
 
-      &:first-child {
-        margin: 0;
-      }
-      &.active {
-        background-color: @component-active-bg;
-        color: @component-active-color;
-        a {
-          color: @component-active-color;
+    .list-group-item {
+      padding: 8px 15px;
+
+      ul {
+        padding: 0;
+        display: flex;
+        flex-direction: row;
+
+        .finder-type {
+          margin-right: 10px;
         }
       }
+
+      a {
+        i {
+          color: @saved-object-finder-icon-color !important;
+          margin-right: 10px;
+        }
+
+        display: block;
+        color: @saved-object-finder-link-color !important;
+      }
+
+      &:first-child {
+        .border-top-radius(0) !important;
+      }
+
+      &.list-group-no-results p {
+        margin-bottom: 0 !important;
+      }
+    }
+  }
+
+  paginate {
+    paginate-controls {
+      margin: 20px;
     }
   }
 }
-
-// when rendered within a config dropdown, don't use a bottom margin
-.config saved-object-finder .finder-options {
-  margin-bottom: 0;
-  background: @config-saved-object-finder-options-bg;
-}
-
-//== Generic Media List
-.media-object {
-  // image in result list
-  width: 65px;
-  height: 65px;
-}
-
 
 //== inputDatetime
 .input-datetime-format {
   font-size: @font-size-small;
   color: @text-muted;
   padding: @padding-base-vertical @padding-base-horizontal;
-}
-
-//== clicking disabled buttons should not cause the whole page to get selected
-button[disabled] {
-  user-select: none;
 }
 
 //== override the disabled cursor that doesn't work everywhere
@@ -399,10 +334,6 @@ input[type="checkbox"],
   }
 }
 
-textarea {
-  resize: vertical;
-}
-
 .field-collapse-toggle {
   color: @field-collapse-toggle-color;
   margin-left: 10px !important;
@@ -412,7 +343,7 @@ style-compile {
   display: none;
 }
 
-.tooltip-inner {
+.bsTooltip-inner {
   white-space: pre-wrap !important;
 }
 
@@ -420,30 +351,34 @@ style-compile {
 
 
 .cell-hover {
-  background-color: @table-cell-hover-bg;
-  &-show {
+  position: relative;
+
+  /**
+   * 1. Center vertically regardless of row height.
+   */
+  .table-cell-filter {
+    position: absolute;
+    white-space: nowrap;
+    right: 0;
+    top: 50%; /* 1 */
+    transform: translateY(-50%); /* 1 */
+    display: none;
+  }
+}
+
+  .cell-hover-show {
     // so that the cell doesn't change size on hover
     visibility: hidden;
   }
-}
+
 .cell-hover:hover {
-  background-color: @table-cell-hover-hover-bg;
-  cursor: cell;
+  .table-cell-filter {
+    display: inline;
+  }
 
   .cell-hover-show {
     visibility: visible;
   }
-}
-
-mark, .mark {
-  background-color: @mark-bg;
-}
-
-fieldset {
-  margin: @form-group-margin-bottom;
-  padding: @form-group-margin-bottom;
-  border: 1px solid @input-border;
-  border-radius: @input-border-radius;
 }
 
 [fixed-scroll] {
@@ -457,3 +392,339 @@ fieldset {
     overflow-y: hidden;
   }
 }
+
+.list-group {
+  .list-group-item {
+    &.active,
+    &.active:hover,
+    &.active:focus {
+      background-color: @list-group-menu-item-active-bg;
+      cursor: default;
+    }
+  }
+}
+
+// TODO: Extract these styles into the UI Framework.
+
+.page-row {
+  padding: 0 20px;
+  margin: 20px 0;
+}
+
+.page-row-text {
+  color: @kibanaGray2;
+  font-size: 14px;
+}
+
+.kuiFormSection {
+  margin-bottom: 16px;
+}
+
+.kuiFormSubSection {
+  margin-bottom: 8px;
+}
+
+.kuiFormLabel {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 700;
+}
+
+.kuiFormSubLabel {
+  display: block;
+  font-weight: normal;
+}
+
+  .kuiFormSubLabel__note {
+    opacity: 0.5;
+    margin-left: 4px;
+    font-size: 12px;
+  }
+
+.kuiInputNote {
+  margin: 5px 0 10px;
+}
+
+.kuiInputNote--danger {
+  color: #E74C3C;
+}
+
+.kuiInputNote--warning {
+  color: #F39C12;
+}
+
+/**
+ * 1. Override label styles.
+ */
+.kuiOptionLabel {
+  font-weight: normal; // 1
+  cursor: pointer;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+
+.kuiFormPanel {
+  border: 1px solid #D4D4D4;
+  padding: 12px;
+}
+
+.kuiList {
+  margin-bottom: 10px;
+}
+
+.kuiListItem {
+  padding: 12px 0;
+
+  & + & {
+    border-top: 2px dashed rgba(212, 212, 212, 0.5);
+  }
+
+  &:first-child {
+    padding-top: 0;
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+}
+
+/**
+ * Utility class.
+ */
+.fullWidth {
+  width: 100% !important;
+}
+
+/**
+ * Utility class.
+ */
+.noPadding {
+  padding: 0 !important;
+}
+
+/**
+ * TODO: This is a generic pattern that should be replaced by specific components, e.g. inputGroup.
+ */
+.flexGroup {
+  display: flex;
+  width: 100%;
+}
+
+  .flexGroup__filler {
+    flex: 1 1 auto;
+  }
+
+.kuiFormSection {
+  margin-bottom: 16px;
+}
+
+.kuiFormLabel {
+  display: block;
+}
+
+.kuiFormSubLabel {
+  display: block;
+  font-weight: normal;
+}
+
+.kuiSideBarSelect {
+  // TODO: @include kuiSelect styles when this is moved to the UI Framework and we're using SASS.
+  height: 24px;
+  width: 100%;
+  font-size: 12px;
+  padding: 0 15px;
+}
+
+.kuiSideBarInput {
+  // TODO: @include kuiInput styles when this is moved to the UI Framework and we're using SASS.
+  display: block;
+  width: 100%;
+  height: 24px;
+  font-size: 12px;
+  color: #2d2d2d;
+  border: 1px solid #D4D4D4;
+  border-radius: 4px;
+  padding: 5px 15px;
+}
+
+.kuiSideBarSection {
+  margin-bottom: 10px;
+  background-color: @globalColorWhite;
+  padding: 10px;
+  border-radius: 4px;
+
+  label {
+    margin-bottom: 5px !important;
+    font-weight: 700;
+    display: block;
+  }
+
+  .vis-option-item label {
+    font-weight: normal !important;
+  }
+}
+
+.kuiSideBarSection .kuiSideBarSection .kuiSideBarSection{
+  border-radius: 0px;
+  border-left: solid 1px tint(@globalColorBlue, 20%);
+  margin-left: 3px; // Align to caret open
+}
+
+
+.kuiSideBarSection__main {
+}
+
+.kuiSideBarSectionTitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.kuiSideBarSectionTitle__text {
+  font-size: 18px;
+  color: @globalColorDarkestGray;
+}
+
+/**
+ * 1. Override Bootstrap button styles.
+ */
+.kuiSideBarSectionTitle__action {
+  background-color: transparent; // 1
+  padding: 0; // 1
+  cursor: pointer;
+  color: @globalColorBlue;
+  border: none;
+
+  &:hover {
+    color: darken(@globalColorBlue, 10%);
+  }
+}
+
+.kuiSideBarCollapsibleTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.kuiSideBarCollapsibleTitle__label {
+  display: flex;
+  align-items: center;
+}
+
+/**
+ * 1. Override FontAwesome .fa styles.
+ */
+.kuiSideBarCollapsibleTitle__caret {
+  width: 14px;
+  height: 14px;
+  font-size: 14px !important; // 1
+  color: @globalColorBlue;
+}
+
+.kuiSideBarCollapsibleTitle__text {
+  font-size: 14px;
+  color: @globalColorBlue;
+}
+
+/**
+ * 1. Override Bootstrap button styles.
+ */
+.kuiSideBarCollapsibleTitle__action {
+  background-color: transparent; // 1
+  padding: 0; // 1
+  cursor: pointer;
+  color: @globalColorBlue;
+  border: none;
+
+  &:hover {
+    color: darken(@globalColorBlue, 10%);
+  }
+}
+
+.kuiSideBarCollapsibleSection {
+}
+
+/**
+ * 1. Override Bootstrap h1 styles.
+ */
+.kuiSideBarFormSectionTitle {
+  font-size: 12px;
+  color: @globalColorDarkGray;
+  margin: 10px 0 !important; // 1
+  padding-bottom: 2px;
+}
+
+.kuiSideBarFormRow {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  margin-bottom: 10px;
+}
+
+/**
+ * 1. Override .vis-editor-sidebar styles.
+ */
+.kuiSideBarFormRow__label {
+  display: flex;
+  align-items: center;
+  flex: 1 1 40% !important; // 1
+  font-weight: 400;
+}
+
+.kuiSideBarFormRow__label__colorbox {
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  margin-right: 10px;
+  border: 1px ridge lightgray;
+}
+
+.kuiSideBarFormRow__control {
+  display: flex;
+  align-items: center;
+  flex: 1 1 60%;
+}
+
+/**
+ * 1. Override .sidebar-item styles.
+ */
+.kuiSideBarOptionsLink {
+  display: flex;
+  align-items: baseline;
+  font-size: 12px;
+  color: @globalColorBlue !important; // 1
+
+  &:hover {
+    color: #105A73 !important; // 1
+  }
+}
+
+.kuiSideBarOptionsLink__caret {
+  width: 10px;
+  height: 10px;
+}
+
+.kuiSideBarOptionsLink__text {
+  margin-left: 2px;
+}
+
+.kuiGalleryItem__image img {
+  width: 64px;
+  height: 64px;
+}
+
+.pdf-options label {
+  padding-bottom: 5px;
+  display: block;
+}
+
+.euiComboBox {
+  input:focus {
+    box-shadow: none;
+  }
+}
+
+@import "~dragula/dist/dragula.css";

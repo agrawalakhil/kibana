@@ -1,11 +1,12 @@
-var _ = require('lodash');
+import _ from 'lodash';
 
-module.exports = {
+export default {
   'label': '',
   'xAxisLabel': 'bytes ranges',
   'yAxisLabel': 'Count of documents',
   'series': [
     {
+      'label': 'Count',
       'values': [
         {
           'x': '0.0-1000.0',

@@ -1,6 +1,33 @@
+.vislib-container {
+  flex: 1 1 0; /* 1 */
+  display: flex;
+  flex-direction: row;
+  overflow: auto;
+
+  &.vislib-container--legend-left {
+    flex-direction: row-reverse;
+  }
+  &.vislib-container--legend-right {
+    flex-direction: row;
+  }
+  &.vislib-container--legend-top {
+    flex-direction: column-reverse;
+  }
+  &.vislib-container--legend-bottom {
+    flex-direction: column;
+  }
+}
+
+.vislib-chart {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
 .visualize-chart {
   display: flex;
-  flex: 1 1 100%;
+  flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
 }
@@ -12,6 +39,32 @@
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+  padding: 10px 0;
+}
+
+.vis-wrapper svg {
+  overflow: visible;
+}
+
+/* SVG Element Default Styling */
+.vis-wrapper {
+  rect {
+    opacity: 1;
+
+    &:hover {
+      opacity: @vis-hover-opacity;
+    }
+  }
+
+  circle {
+    opacity: 0;
+
+    &:hover {
+      opacity: 1;
+      stroke-width: 10px;
+      stroke-opacity: @vis-hover-opacity;
+    }
+  }
 }
 
 /* YAxis logic */
@@ -31,7 +84,7 @@
 }
 
 .y-axis-spacer-block {
-  min-height: 45px;
+  min-height: 0px;
 }
 
 .y-axis-div-wrapper {
@@ -43,13 +96,14 @@
 
 .y-axis-div {
   flex: 1 1 25px;
-  min-width: 14px;
+  min-width: 1px;
   min-height: 14px;
+  margin: 5px 0px;
 }
 
 .y-axis-title {
   min-height: 14px;
-  min-width: 14px;
+  min-width: 1px;
 }
 
 .y-axis-chart-title {
@@ -57,7 +111,6 @@
   flex-direction: column;
   min-height: 14px;
   min-width: 0;
-  width: 14px;
 }
 
 .y-axis-title text, .x-axis-title text {
@@ -79,20 +132,29 @@
 
 .vis-col-wrapper {
   display: flex;
-  flex: 1 0 20px;
+  flex: 1 0 0px;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  margin-right: 8px;
 }
 
 .chart-wrapper {
   display: flex;
-  flex: 1 0 20px;
+  flex: 1 0 0px;
   overflow: visible;
-  margin: 0;
+  margin: 5px;
   min-height: 0;
   min-width: 0;
+}
+
+.chart-wrapper-row .chart-wrapper {
+  margin-left: 0px;
+  margin-right: 0px;
+}
+
+.chart-wrapper-column .chart-wrapper {
+  margin-top: 0px;
+  margin-bottom: 0px;
 }
 
 .chart-wrapper-column {
@@ -138,7 +200,7 @@
 .x-axis-wrapper {
   display: flex;
   flex-direction: column;
-  min-height: 45px;
+  min-height: 0px;
   min-width: 0;
   overflow: visible;
 }
@@ -146,27 +208,65 @@
 .x-axis-div-wrapper {
   display: flex;
   flex-direction: row;
-  min-height: 20px;
+  min-height: 0px;
   min-width: 0;
 }
 
 .x-axis-chart-title {
   display: flex;
   flex-direction: row;
-  min-height: 15px;
+  min-height: 1px;
   max-height: 15px;
   min-width: 20px;
 }
 
 .x-axis-title {
-  min-height: 15px;
-  max-height: 15px;
   min-width: 20px;
-  overflow: hidden;
 }
 
 .x-axis-div {
-  margin-top: -5px;
-  min-height: 20px;
-  min-width: 20px;
+  min-height: 0px;
+  min-width: 1px;
+  margin: 0px 5px;
+  width: 100%;
+}
+
+.x-axis-div svg {
+  float: left; /* for some reason svg wont get positioned in top left corner of container div without this */
+}
+
+.axis-wrapper-top .axis-div svg {
+  margin-bottom: -5px;
+}
+
+.chart-first {
+  margin-top: 0px;
+  margin-left: 0px
+}
+.chart-last {
+  margin-bottom: 0px;
+  margin-right: 0px;
+}
+
+.label-line {
+  opacity: .3;
+  stroke: black;
+  stroke-width: 2px;
+  fill: none;
+}
+
+.label-text {
+  font-size: 130%;
+  font-weight: normal;
+}
+
+// SASSTODO: Make sure these colors convert to theme variables
+.tab-dashboard.theme-dark {
+  .y-axis-title text, .x-axis-title text {
+    fill: @gray10;
+  }
+
+  .chart-title text {
+    fill: @gray10;
+  }
 }

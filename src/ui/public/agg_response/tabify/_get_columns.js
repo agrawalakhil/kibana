@@ -1,51 +1,57 @@
-define(function (require) {
-  return function GetColumnsProvider(Private) {
-    var _ = require('lodash');
-    var AggConfig = Private(require('ui/Vis/AggConfig'));
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-    return function getColumns(vis, minimal) {
-      var aggs = vis.aggs.getResponseAggs();
+import _ from 'lodash';
 
-      if (minimal == null) minimal = !vis.isHierarchical();
+export function tabifyGetColumns(aggs, minimal, hierarchical) {
 
-      if (!vis.aggs.bySchemaGroup.metrics) {
-        aggs.push(new AggConfig(vis, {
-          type: 'count',
-          schema: vis.type.schemas.metrics[0].name
-        }));
-      }
+  if (minimal == null) minimal = !hierarchical;
 
-      // pick the columns
-      if (minimal) {
-        return aggs.map(function (agg) {
-          return { aggConfig: agg };
-        });
-      }
+  // pick the columns
+  if (minimal) {
+    return aggs.map(function (agg) {
+      return { aggConfig: agg };
+    });
+  }
 
-      // supposed to be bucket,...metrics,bucket,...metrics
-      var columns = [];
+  // supposed to be bucket,...metrics,bucket,...metrics
+  const columns = [];
 
-      // seperate the metrics
-      var grouped = _.groupBy(aggs, function (agg) {
-        return agg.schema.group;
-      });
+  // separate the metrics
+  const grouped = _.groupBy(aggs, function (agg) {
+    return agg.type.type;
+  });
 
-      if (!grouped.buckets) {
-        // return just the metrics, in column format
-        return grouped.metrics.map(function (agg) {
-          return { aggConfig: agg };
-        });
-      }
+  if (!grouped.buckets) {
+    // return just the metrics, in column format
+    return grouped.metrics.map(function (agg) {
+      return { aggConfig: agg };
+    });
+  }
 
-      // return the buckets, and after each place all of the metrics
-      grouped.buckets.forEach(function (agg, i) {
-        columns.push({ aggConfig: agg });
-        grouped.metrics.forEach(function (metric) {
-          columns.push({ aggConfig: metric });
-        });
-      });
+  // return the buckets, and after each place all of the metrics
+  grouped.buckets.forEach(function (agg) {
+    columns.push({ aggConfig: agg });
+    grouped.metrics.forEach(function (metric) {
+      columns.push({ aggConfig: metric });
+    });
+  });
 
-      return columns;
-    };
-  };
-});
+  return columns;
+}

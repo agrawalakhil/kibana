@@ -1,48 +1,77 @@
-define(function (require) {
-  var module = require('ui/modules').get('kibana/index_patterns');
-  require('ui/filters/short_dots');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  module.service('indexPatterns', function (es, Notifier, Private, Promise, kbnIndex) {
-    var self = this;
-    var _ = require('lodash');
-    var errors = require('ui/errors');
+import { IndexPatternMissingIndices } from '../errors';
+import { IndexPatternProvider } from './_index_pattern';
+import { IndexPatternsPatternCacheProvider } from './_pattern_cache';
+import { IndexPatternsGetProvider } from './_get';
+import { IndexPatternsIntervalsProvider } from './_intervals';
+import { FieldsFetcherProvider } from './fields_fetcher_provider';
+import { fieldFormats } from '../registry/field_formats';
+import { uiModules } from '../modules';
+const module = uiModules.get('kibana/index_patterns');
 
-    var IndexPattern = Private(require('ui/index_patterns/_index_pattern'));
-    var patternCache = Private(require('ui/index_patterns/_pattern_cache'));
+export function IndexPatternsProvider(Notifier, Private, config) {
+  const self = this;
 
-    var notify = new Notifier({ location: 'IndexPatterns Service'});
+  const IndexPattern = Private(IndexPatternProvider);
+  const patternCache = Private(IndexPatternsPatternCacheProvider);
+  const getProvider = Private(IndexPatternsGetProvider);
 
-    self.get = function (id) {
-      if (!id) return self.make();
 
-      var cache = patternCache.get(id);
-      return cache || patternCache.set(id, self.make(id));
-    };
+  self.get = function (id) {
+    if (!id) return self.make();
 
-    self.make = function (id) {
-      return (new IndexPattern(id)).init();
-    };
+    const cache = patternCache.get(id);
+    return cache || patternCache.set(id, self.make(id));
+  };
 
-    self.delete = function (pattern) {
-      self.getIds.clearCache();
-      patternCache.delete(pattern.id);
-      return es.delete({
-        index: kbnIndex,
-        type: 'index-pattern',
-        id: pattern.id
-      });
-    };
+  self.getDefault = async () => {
+    const defaultIndexPatternId = config.get('defaultIndex');
+    if (defaultIndexPatternId) {
+      return await self.get(defaultIndexPatternId);
+    }
 
-    self.errors = {
-      MissingIndices: errors.IndexPatternMissingIndices
-    };
+    return null;
+  };
 
-    self.cache = patternCache;
-    self.getIds = Private(require('ui/index_patterns/_get_ids'));
-    self.intervals = Private(require('ui/index_patterns/_intervals'));
-    self.mapper = Private(require('ui/index_patterns/_mapper'));
-    self.patternToWildcard = Private(require('ui/index_patterns/_pattern_to_wildcard'));
-    self.fieldFormats = Private(require('ui/registry/field_formats'));
-    self.IndexPattern = IndexPattern;
-  });
-});
+  self.make = function (id) {
+    return (new IndexPattern(id)).init();
+  };
+
+  self.delete = function (pattern) {
+    self.getIds.clearCache();
+    return pattern.destroy();
+  };
+
+  self.errors = {
+    MissingIndices: IndexPatternMissingIndices
+  };
+
+  self.cache = patternCache;
+  self.getIds = getProvider('id');
+  self.getTitles = getProvider('attributes.title');
+  self.getFields = getProvider.multiple;
+  self.intervals = Private(IndexPatternsIntervalsProvider);
+  self.fieldsFetcher = Private(FieldsFetcherProvider);
+  self.fieldFormats = fieldFormats;
+  self.IndexPattern = IndexPattern;
+}
+
+module.service('indexPatterns', Private => Private(IndexPatternsProvider));

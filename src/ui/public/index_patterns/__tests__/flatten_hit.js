@@ -1,20 +1,38 @@
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import expect from 'expect.js';
+import ngMock from 'ng_mock';
+import { IndexPatternsFlattenHitProvider } from '../_flatten_hit';
 
 describe('IndexPattern#flattenHit()', function () {
-
-  var _ = require('lodash');
-  var expect = require('expect.js');
-  var ngMock = require('ngMock');
-
-  var flattenHit;
-  var config;
-  var hit;
-  var flat;
+  let flattenHit;
+  let config;
+  let hit;
 
   beforeEach(ngMock.module('kibana'));
   beforeEach(ngMock.inject(function (Private, $injector) {
-    var indexPattern = {
+    const indexPattern = {
       fields: {
         byName: {
+          'tags.text': { type: 'string' },
+          'tags.label': { type: 'string' },
           'message': { type: 'string' },
           'geo.coordinates': { type: 'geo_point' },
           'geo.dest': { type: 'string' },
@@ -32,7 +50,12 @@ describe('IndexPattern#flattenHit()', function () {
       }
     };
 
-    flattenHit = Private(require('ui/index_patterns/_flatten_hit'))(indexPattern).uncached;
+    const cachedFlatten = Private(IndexPatternsFlattenHitProvider)(indexPattern);
+    flattenHit = function (hit, deep = false) {
+      delete hit.$$_flattened;
+      return cachedFlatten(hit, deep);
+    };
+
     config = $injector.get('config');
 
     hit = {
@@ -45,7 +68,10 @@ describe('IndexPattern#flattenHit()', function () {
         },
         bytes: 10039103,
         '@timestamp': (new Date()).toString(),
-        tags: [{ text: 'foo' }, { text: 'bar' }],
+        tags: [
+          { text: 'foo', label: [ 'FOO1', 'FOO2' ] },
+          { text: 'bar', label: 'BAR' }
+        ],
         groups: ['loners'],
         noMapping: true,
         team: [
@@ -60,11 +86,11 @@ describe('IndexPattern#flattenHit()', function () {
         random: [0.12345]
       }
     };
-
-    flat = flattenHit(hit);
   }));
 
   it('flattens keys as far down as the mapping goes', function () {
+    const flat = flattenHit(hit);
+
     expect(flat).to.have.property('geo.coordinates', hit._source.geo.coordinates);
     expect(flat).to.not.have.property('geo.coordinates.lat');
     expect(flat).to.not.have.property('geo.coordinates.lon');
@@ -76,22 +102,42 @@ describe('IndexPattern#flattenHit()', function () {
   });
 
   it('flattens keys not in the mapping', function () {
+    const flat = flattenHit(hit);
+
     expect(flat).to.have.property('noMapping', true);
     expect(flat).to.have.property('groups');
     expect(flat.groups).to.eql(['loners']);
   });
 
   it('flattens conflicting types in the mapping', function () {
+    const flat = flattenHit(hit);
+
     expect(flat).to.not.have.property('user');
     expect(flat).to.have.property('user.name', hit._source.user.name);
     expect(flat).to.have.property('user.id', hit._source.user.id);
   });
 
-  it('preserves objects in arrays', function () {
+  it('should preserve objects in arrays if deep argument is false', function () {
+    const flat = flattenHit(hit);
+
     expect(flat).to.have.property('tags', hit._source.tags);
   });
 
+  it('should expand objects in arrays if deep argument is true', function () {
+    const flat = flattenHit(hit, true);
+
+    expect(flat['tags.text']).to.be.eql([ 'foo', 'bar' ]);
+  });
+
+  it('should support arrays when expanding objects in arrays if deep argument is true', function () {
+    const flat = flattenHit(hit, true);
+
+    expect(flat['tags.label']).to.be.eql([ 'FOO1', 'FOO2', 'BAR' ]);
+  });
+
   it('does not enter into nested fields', function () {
+    const flat = flattenHit(hit);
+
     expect(flat).to.have.property('team', hit._source.team);
     expect(flat).to.not.have.property('team.name');
     expect(flat).to.not.have.property('team.role');
@@ -100,24 +146,28 @@ describe('IndexPattern#flattenHit()', function () {
   });
 
   it('unwraps script fields', function () {
+    const flat = flattenHit(hit);
+
     expect(flat).to.have.property('delta', 42);
   });
 
   it('assumes that all fields are "computed fields"', function () {
+    const flat = flattenHit(hit);
+
     expect(flat).to.have.property('random', 0.12345);
   });
 
   it('ignores fields that start with an _ and are not in the metaFields', function () {
     config.set('metaFields', ['_metaKey']);
     hit.fields._notMetaKey = [100];
-    flat = flattenHit(hit);
+    const flat = flattenHit(hit);
     expect(flat).to.not.have.property('_notMetaKey');
   });
 
   it('includes underscore-prefixed keys that are in the metaFields', function () {
     config.set('metaFields', ['_metaKey']);
     hit.fields._metaKey = [100];
-    flat = flattenHit(hit);
+    const flat = flattenHit(hit);
     expect(flat).to.have.property('_metaKey', 100);
   });
 
@@ -125,7 +175,7 @@ describe('IndexPattern#flattenHit()', function () {
     hit.fields._metaKey = [100];
 
     config.set('metaFields', ['_metaKey']);
-    flat = flattenHit(hit);
+    let flat = flattenHit(hit);
     expect(flat).to.have.property('_metaKey', 100);
 
     config.set('metaFields', []);
@@ -136,7 +186,7 @@ describe('IndexPattern#flattenHit()', function () {
   it('handles fields that are not arrays, like _timestamp', function () {
     hit.fields._metaKey = 20000;
     config.set('metaFields', ['_metaKey']);
-    flat = flattenHit(hit);
+    const flat = flattenHit(hit);
     expect(flat).to.have.property('_metaKey', 20000);
   });
 });

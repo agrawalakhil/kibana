@@ -1,14 +1,30 @@
-define(function (require) {
-  return function TimeMarkerFactory() {
-    var d3 = require('d3');
-    var dateMath = require('ui/utils/dateMath');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-    function TimeMarker(times, xScale, height) {
-      if (!(this instanceof TimeMarker)) {
-        return new TimeMarker(times, xScale, height);
-      }
+import d3 from 'd3';
+import dateMath from '@kbn/datemath';
 
-      var currentTimeArr = [{
+export function VislibVisualizationsTimeMarkerProvider() {
+
+  class TimeMarker {
+    constructor(times, xScale, height) {
+      const currentTimeArr = [{
         'time': new Date().getTime(),
         'class': 'time-marker',
         'color': '#c80000',
@@ -29,15 +45,15 @@ define(function (require) {
       }) : currentTimeArr;
     }
 
-    TimeMarker.prototype._isTimeBasedChart = function (selection) {
-      var data = selection.data();
+    _isTimeBasedChart(selection) {
+      const data = selection.data();
       return data.every(function (datum) {
         return (datum.ordered && datum.ordered.date);
       });
-    };
+    }
 
-    TimeMarker.prototype.render = function (selection) {
-      var self = this;
+    render(selection) {
+      const self = this;
 
       // return if not time based chart
       if (!self._isTimeBasedChart(selection)) return;
@@ -68,8 +84,8 @@ define(function (require) {
           .attr('y1', self.height)
           .attr('y2', self.xScale.range()[0]);
       });
-    };
+    }
+  }
 
-    return TimeMarker;
-  };
-});
+  return TimeMarker;
+}

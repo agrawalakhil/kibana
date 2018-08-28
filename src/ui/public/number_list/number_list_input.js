@@ -1,28 +1,45 @@
-define(function (require) {
-  var $ = require('jquery');
-  var _ = require('lodash');
-  var keyMap = require('ui/utils/key_map');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  var INVALID = {}; // invalid flag
-  var FLOATABLE = /^[\d\.e\-\+]+$/i;
+import { keyMap } from '../utils/key_map';
+import { uiModules } from '../modules';
 
-  var VALIDATION_ERROR = 'numberListRangeAndOrder';
-  var DIRECTIVE_ATTR = 'kbn-number-list-input';
+const INVALID = {}; // invalid flag
+const FLOATABLE = /^[\d\.e\-\+]+$/i;
 
-  require('ui/modules')
+const VALIDATION_ERROR = 'numberListRangeAndOrder';
+const DIRECTIVE_ATTR = 'kbn-number-list-input';
+
+uiModules
   .get('kibana')
   .directive('kbnNumberListInput', function ($parse) {
     return {
       restrict: 'A',
       require: ['ngModel', '^kbnNumberList'],
       link: function ($scope, $el, attrs, controllers) {
-        var ngModelCntr = controllers[0];
-        var numberListCntr = controllers[1];
+        const ngModelCntr = controllers[0];
+        const numberListCntr = controllers[1];
 
-        var $setModel = $parse(attrs.ngModel).assign;
-        var $repeater = $el.closest('[ng-repeat]');
+        const $setModel = $parse(attrs.ngModel).assign;
+        const $repeater = $el.closest('[ng-repeat]');
 
-        var handlers = {
+        const handlers = {
           up: change(add, 1),
           'shift-up': change(addTenth, 1),
 
@@ -54,14 +71,14 @@ define(function (require) {
 
         function go(dir) {
           return function () {
-            var $to = $get(dir);
-            if ($to.size()) $to.focus();
+            const $to = $get(dir);
+            if ($to.length) $to.focus();
             else return false;
           };
         }
 
         function idKey(event) {
-          var id = [];
+          const id = [];
           if (event.ctrlKey) id.push('ctrl');
           if (event.shiftKey) id.push('shift');
           if (event.metaKey) id.push('meta');
@@ -75,8 +92,8 @@ define(function (require) {
         }
 
         function addTenth(n, val, str) {
-          var int = Math.floor(val);
-          var dec = parseInt(str.split('.')[1] || 0, 10);
+          let int = Math.floor(val);
+          let dec = parseInt(str.split('.')[1] || 0, 10);
           dec = dec + parseInt(n, 10);
 
           if (dec < 0 || dec > 9) {
@@ -93,11 +110,11 @@ define(function (require) {
 
         function change(using, mod) {
           return function () {
-            var str = String(ngModelCntr.$viewValue);
-            var val = parse(str);
+            const str = String(ngModelCntr.$viewValue);
+            const val = parse(str);
             if (val === INVALID) return;
 
-            var next = using(mod, val, str);
+            const next = using(mod, val, str);
             if (next === INVALID) return;
 
             $el.val(next);
@@ -106,7 +123,7 @@ define(function (require) {
         }
 
         function onKeydown(event) {
-          var handler = handlers[idKey(event)];
+          const handler = handlers[idKey(event)];
           if (!handler) return;
 
           if (handler(event) !== false) {
@@ -122,10 +139,10 @@ define(function (require) {
         });
 
         function parse(viewValue) {
-          var num = viewValue;
+          let num = viewValue;
 
           if (typeof num !== 'number' || isNaN(num)) {
-            // parse non-numbers
+          // parse non-numbers
             num = String(viewValue || 0).trim();
             if (!FLOATABLE.test(num)) return INVALID;
 
@@ -133,13 +150,13 @@ define(function (require) {
             if (isNaN(num)) return INVALID;
           }
 
-          var range = numberListCntr.range;
+          const range = numberListCntr.range;
           if (!range.within(num)) return INVALID;
 
-          if ($scope.$index > 0) {
-            var i = $scope.$index - 1;
-            var list = numberListCntr.getList();
-            var prev = list[i];
+          if (numberListCntr.validateAscOrder && $scope.$index > 0) {
+            const i = $scope.$index - 1;
+            const list = numberListCntr.getList();
+            const prev = list[i];
             if (num <= prev) return INVALID;
           }
 
@@ -155,14 +172,14 @@ define(function (require) {
             }
           }
         ], function () {
-          var valid = parse(ngModelCntr.$viewValue) !== INVALID;
+          const valid = parse(ngModelCntr.$viewValue) !== INVALID;
           ngModelCntr.$setValidity(VALIDATION_ERROR, valid);
         });
 
         function validate(then) {
           return function (input) {
-            var value = parse(input);
-            var valid = value !== INVALID;
+            let value = parse(input);
+            const valid = value !== INVALID;
             value = valid ? value : input;
             ngModelCntr.$setValidity(VALIDATION_ERROR, valid);
             then && then(input, value);
@@ -182,4 +199,3 @@ define(function (require) {
     };
   });
 
-});

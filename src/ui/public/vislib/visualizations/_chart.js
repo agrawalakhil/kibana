@@ -1,44 +1,59 @@
-define(function (require) {
-  return function ChartBaseClass(Private) {
-    var d3 = require('d3');
-    var _ = require('lodash');
-    var errors = require('ui/errors');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-    var Dispatch = Private(require('ui/vislib/lib/dispatch'));
-    var Tooltip = Private(require('ui/vislib/components/Tooltip'));
-    var dataLabel = require('ui/vislib/lib/_data_label');
+import d3 from 'd3';
+import _ from 'lodash';
+import { dataLabel } from '../lib/_data_label';
+import { VislibLibDispatchProvider } from '../lib/dispatch';
+import { TooltipProvider } from '../../vis/components/tooltip';
 
-    /**
-     * The Base Class for all visualizations.
-     *
-     * @class Chart
-     * @constructor
-     * @param handler {Object} Reference to the Handler Class Constructor
-     * @param el {HTMLElement} HTML element to which the chart will be appended
-     * @param chartData {Object} Elasticsearch query results for this specific chart
-     */
-    function Chart(handler, el, chartData) {
-      if (!(this instanceof Chart)) {
-        return new Chart(handler, el, chartData);
-      }
+export function VislibVisualizationsChartProvider(Private) {
 
+  const Dispatch = Private(VislibLibDispatchProvider);
+  const Tooltip = Private(TooltipProvider);
+  /**
+   * The Base Class for all visualizations.
+   *
+   * @class Chart
+   * @constructor
+   * @param handler {Object} Reference to the Handler Class Constructor
+   * @param el {HTMLElement} HTML element to which the chart will be appended
+   * @param chartData {Object} Elasticsearch query results for this specific chart
+   */
+  class Chart {
+    constructor(handler, el, chartData) {
       this.handler = handler;
       this.chartEl = el;
       this.chartData = chartData;
       this.tooltips = [];
 
-      var events = this.events = new Dispatch(handler);
+      const events = this.events = new Dispatch(handler);
 
-      if (_.get(this.handler, '_attr.addTooltip')) {
-        var $el = this.handler.el;
-        var formatter = this.handler.data.get('tooltipFormatter');
+      if (this.handler.visConfig && this.handler.visConfig.get('addTooltip', false)) {
+        const $el = this.handler.el;
+        const formatter = this.handler.data.get('tooltipFormatter');
 
         // Add tooltip
         this.tooltip = new Tooltip('chart', $el, formatter, events);
         this.tooltips.push(this.tooltip);
       }
 
-      this._attr = _.defaults(this.handler._attr || {}, {});
       this._addIdentifier = _.bind(this._addIdentifier, this);
     }
 
@@ -48,12 +63,12 @@ define(function (require) {
      * @method render
      * @returns {HTMLElement} Contains the D3 chart
      */
-    Chart.prototype.render = function () {
-      var selection = d3.select(this.chartEl);
+    render() {
+      const selection = d3.select(this.chartEl);
 
       selection.selectAll('*').remove();
       selection.call(this.draw());
-    };
+    }
 
     /**
      * Append the data label to the element
@@ -61,9 +76,9 @@ define(function (require) {
      * @method _addIdentifier
      * @param selection {Object} d3 select object
      */
-    Chart.prototype._addIdentifier = function (selection, labelProp) {
+    _addIdentifier(selection, labelProp) {
       labelProp = labelProp || 'label';
-      var labels = this.handler.data.labels;
+      const labels = this.handler.data.labels;
 
       function resolveLabel(datum) {
         if (labels.length === 1) return labels[0];
@@ -72,26 +87,25 @@ define(function (require) {
       }
 
       selection.each(function (datum) {
-        var label = resolveLabel(datum);
+        const label = resolveLabel(datum);
         if (label != null) dataLabel(this, label);
       });
-    };
+    }
 
     /**
      * Removes all DOM elements from the root element
      *
      * @method destroy
      */
-    Chart.prototype.destroy = function () {
-      var selection = d3.select(this.chartEl);
+    destroy() {
+      const selection = d3.select(this.chartEl);
       this.events.removeAllListeners();
       this.tooltips.forEach(function (tooltip) {
         tooltip.destroy();
       });
       selection.remove();
-      selection = null;
-    };
+    }
+  }
 
-    return Chart;
-  };
-});
+  return Chart;
+}

@@ -1,6 +1,6 @@
-var _ = require('lodash');
+import _ from 'lodash';
 
-module.exports = {
+export default {
   'label': '',
   'slices': {
     'children': [

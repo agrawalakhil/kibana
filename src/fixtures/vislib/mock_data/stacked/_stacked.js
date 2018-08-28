@@ -1,6 +1,6 @@
-var moment = require('moment');
+import moment from 'moment';
 
-module.exports = {
+export default {
   'label': '',
   'xAxisLabel': '@timestamp per 30 sec',
   'ordered': {

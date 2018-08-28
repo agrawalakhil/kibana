@@ -1,28 +1,47 @@
-describe('getAspects', function () {
-  var _ = require('lodash');
-  var moment = require('moment');
-  var expect = require('expect.js');
-  var ngMock = require('ngMock');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  var Vis;
-  var Table;
-  var AggConfig;
-  var indexPattern;
-  var getAspects;
+import _ from 'lodash';
+import moment from 'moment';
+import expect from 'expect.js';
+import ngMock from 'ng_mock';
+import { VisProvider } from '../../../vis';
+import { AggConfig } from '../../../vis/agg_config';
+import { PointSeriesGetAspectsProvider } from '../_get_aspects';
+import FixturesStubbedLogstashIndexPatternProvider from 'fixtures/stubbed_logstash_index_pattern';
+
+describe('getAspects', function () {
+  let Vis;
+  let indexPattern;
+  let getAspects;
 
   beforeEach(ngMock.module('kibana'));
   beforeEach(ngMock.inject(function (Private) {
-    Vis = Private(require('ui/Vis'));
-    Table = Private(require('ui/agg_response/point_series/_add_to_siri'));
-    AggConfig = Private(require('ui/Vis/AggConfig'));
-    getAspects = Private(require('ui/agg_response/point_series/_get_aspects'));
-    indexPattern = Private(require('fixtures/stubbed_logstash_index_pattern'));
+    Vis = Private(VisProvider);
+    getAspects = Private(PointSeriesGetAspectsProvider);
+    indexPattern = Private(FixturesStubbedLogstashIndexPatternProvider);
   }));
 
-  var vis;
-  var table;
+  let vis;
+  let table;
 
-  var date = _.memoize(function (n) {
+  const date = _.memoize(function (n) {
     return moment().startOf('day').add(n, 'hour').valueOf();
   });
 
@@ -44,8 +63,8 @@ describe('getAspects', function () {
   }
 
   function init(group, x, y) {
-    // map args to indicies that should be removed
-    var filter = filterByIndex([
+    // map args to indices that should be removed
+    const filter = filterByIndex([
       x > 0,
       x > 1,
       group > 0,
@@ -87,7 +106,7 @@ describe('getAspects', function () {
       ].map(filter)
     };
 
-    var aggs = vis.aggs.splice(0, vis.aggs.length);
+    const aggs = vis.aggs.splice(0, vis.aggs.length);
     filter(aggs).forEach(function (filter) {
       vis.aggs.push(filter);
     });
@@ -96,7 +115,7 @@ describe('getAspects', function () {
   it('produces an aspect object for each of the aspect types found in the columns', function () {
     init(1, 1, 1);
 
-    var aspects = getAspects(vis, table);
+    const aspects = getAspects(vis, table);
     validate(aspects.x, 0);
     validate(aspects.series, 1);
     validate(aspects.y, 2);
@@ -105,7 +124,7 @@ describe('getAspects', function () {
   it('uses arrays only when there are more than one aspect of a specific type', function () {
     init(0, 1, 2);
 
-    var aspects = getAspects(vis, table);
+    const aspects = getAspects(vis, table);
 
     validate(aspects.x, 0);
     expect(aspects.series == null).to.be(true);
@@ -123,18 +142,10 @@ describe('getAspects', function () {
     }).to.throwError(TypeError);
   });
 
-  it('throws an error if there are multiple series aspects', function () {
-    init(2, 1, 1);
-
-    expect(function () {
-      getAspects(vis, table);
-    }).to.throwError(TypeError);
-  });
-
   it('creates a fake x aspect if the column does not exist', function () {
     init(0, 0, 1);
 
-    var aspects = getAspects(vis, table);
+    const aspects = getAspects(vis, table);
 
     expect(aspects.x)
       .to.be.an('object')

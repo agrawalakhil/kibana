@@ -1,158 +1,121 @@
-define(function (require) {
-  var module = require('ui/modules').get('kibana/config', [
-    'kibana/notify'
-  ]);
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  require('ui/routes').addSetupWork(function (config) {
-    return config.init();
+import angular from 'angular';
+import chrome from '../chrome';
+import { isPlainObject } from 'lodash';
+import { uiModules } from '../modules';
+
+const module = uiModules.get('kibana/config');
+
+/**
+ * Angular tie-in to UiSettingsClient, which is implemented in vanilla JS. Designed
+ * to expose the exact same API as the config service that has existed since forever.
+ * @name config
+ */
+module.service(`config`, function ($rootScope, Promise) {
+  const uiSettings = chrome.getUiSettingsClient();
+
+  // direct bind sync methods
+  this.getAll = (...args) => uiSettings.getAll(...args);
+  this.get = (...args) => uiSettings.get(...args);
+  this.isDeclared = (...args) => uiSettings.isDeclared(...args);
+  this.isDefault = (...args) => uiSettings.isDefault(...args);
+  this.isCustom = (...args) => uiSettings.isCustom(...args);
+  this.isOverridden = (...args) => uiSettings.isOverridden(...args);
+
+  // modify remove() to use angular Promises
+  this.remove = (key) => (
+    Promise.resolve(uiSettings.remove(key))
+  );
+
+  // modify set() to use angular Promises and angular.toJson()
+  this.set = (key, value) => (
+    Promise.resolve(uiSettings.set(
+      key,
+      isPlainObject(value)
+        ? angular.toJson(value)
+        : value
+    ))
+  );
+
+  //////////////////////////////
+  //* angular specific methods *
+  //////////////////////////////
+
+  const subscription = uiSettings.subscribe(({ key, newValue, oldValue }) => {
+    const emit = () => {
+      $rootScope.$broadcast('change:config',        newValue, oldValue, key, this);
+      $rootScope.$broadcast(`change:config.${key}`, newValue, oldValue, key, this);
+    };
+
+    // this is terrible, but necessary to emulate the same API
+    // that the `config` service had before where changes were
+    // emitted to scopes synchronously. All methods that don't
+    // require knowing if we are currently in a digest cycle are
+    // async and would deliver events too late for several usecases
+    //
+    // If you copy this code elsewhere you better have a good reason :)
+    $rootScope.$$phase ? emit() : $rootScope.$apply(emit);
   });
+  $rootScope.$on('$destroy', () => subscription.unsubscribe());
 
-  // service for delivering config variables to everywhere else
-  module.service('config', function (Private, Notifier, kbnVersion, kbnIndex, $rootScope, buildNum) {
-    var config = this;
 
-    var angular = require('angular');
-    var _ = require('lodash');
-    var defaults = Private(require('ui/config/defaults'));
-    var DelayedUpdater = Private(require('ui/config/_delayed_updater'));
-    var vals = Private(require('ui/config/_vals'));
+  this.watchAll = function (handler, scope = $rootScope) {
+    // call handler immediately to initialize
+    handler(null, null, null, this);
 
-    var notify = new Notifier({
-      location: 'Config'
+    return scope.$on('change:config', (event, ...args) => {
+      handler(...args);
     });
+  };
 
-    // active or previous instance of DelayedUpdater. This will log and then process an
-    // update once it is requested by calling #set() or #clear().
-    var updater;
-
-    var DocSource = Private(require('ui/courier/data_source/doc_source'));
-    var doc = (new DocSource())
-      .index(kbnIndex)
-      .type('config')
-      .id(kbnVersion);
-
-    /******
-     * PUBLIC API
-     ******/
-
-    /**
-     * Executes once and returns a promise that is resolved once the
-     * config has loaded for the first time.
-     *
-     * @return {Promise} - Resolved when the config loads initially
-     */
-    config.init = _.once(function () {
-      var complete = notify.lifecycle('config init');
-
-      return (function getDoc() {
-
-        // used to apply an entire es response to the vals, silentAndLocal will prevent
-        // event/notifications/writes from occuring.
-        var applyMassUpdate = function (resp, silentAndLocal) {
-          _.union(_.keys(resp._source), _.keys(vals)).forEach(function (key) {
-            change(key, resp._source[key], silentAndLocal);
-          });
-        };
-
-        return doc.fetch().then(function initDoc(resp) {
-          if (!resp.found) {
-            return doc.doIndex({
-              buildNum: buildNum
-            }).then(getDoc);
-          } else {
-            // apply update, and keep it quiet the first time
-            applyMassUpdate(resp, true);
-
-            // don't keep it quiet other times
-            doc.onUpdate(function (resp) {
-              applyMassUpdate(resp, false);
-            });
-          }
-        });
-      }())
-      .then(function () {
-        $rootScope.$broadcast('init:config');
-      })
-      .then(complete, complete.failure);
-    });
-
-    config.get = function (key, defaultVal) {
-      var keyVal;
-
-      if (vals[key] == null) {
-        if (defaultVal == null) {
-          keyVal = defaults[key].value;
-        } else {
-          keyVal = _.cloneDeep(defaultVal);
-        }
-      } else {
-        keyVal = vals[key];
-      }
-
-      if (defaults[key] && defaults[key].type === 'json') {
-        return JSON.parse(keyVal);
-      }
-      return keyVal;
-    };
-
-    // sets a value in the config
-    config.set = function (key, val) {
-      if (_.isPlainObject(val)) {
-        return change(key, angular.toJson(val));
-      } else {
-        return change(key, val);
-      }
-    };
-
-    // clears a value from the config
-    config.clear = function (key) {
-      return change(key);
-    };
-    // alias for clear
-    config.delete = config.clear;
-
-    config.close = function () {
-      if (updater) updater.fire();
-    };
-
-    /**
-     * A little helper for binding config variables to $scopes
-     *
-     * @param  {Scope} $scope - an angular $scope object
-     * @param  {string} key - the config key to bind to
-     * @param  {string} [property] - optional property name where the value should
-     *                             be stored. Defaults to the config key
-     * @return {function} - an unbind function
-     */
-    config.$bind = function ($scope, key, property) {
-      if (!property) property = key;
-
-      var update = function () {
-        $scope[property] = config.get(key);
-      };
-
-      update();
-      return _.partial(_.invoke, [
-        $scope.$on('change:config.' + key, update),
-        $scope.$on('init:config', update)
-      ], 'call');
-    };
-
-    /*****
-     * PRIVATE API
-     *****/
-    function change(key, val, silentAndLocal) {
-      // if the previous updater has already fired, then start over with null
-      if (updater && updater.fired) updater = null;
-      // create a new updater
-      if (!updater) updater = new DelayedUpdater(doc);
-      // return a promise that will be resolved once the action is eventually done
-      return updater.update(key, val, silentAndLocal);
+  this.watch = function (key, handler, scope = $rootScope) {
+    if (!this.isDeclared(key)) {
+      throw new Error(`Unexpected \`config.watch("${key}", fn)\` call on unrecognized configuration setting "${key}".
+Setting an initial value via \`config.set("${key}", value)\` before binding
+any custom setting configuration watchers for "${key}" may fix this issue.`);
     }
 
-    config._vals = function () {
-      return _.cloneDeep(vals);
+    // call handler immediately with current value
+    handler(this.get(key), null, key, uiSettings);
+
+    // call handler again on each change for this key
+    return scope.$on(`change:config.${key}`, (event, ...args) => {
+      handler(...args);
+    });
+  };
+
+  /**
+   * A little helper for binding config variables to $scopes
+   *
+   * @param  {Scope} $scope - an angular $scope object
+   * @param  {string} key - the config key to bind to
+   * @param  {string} [property] - optional property name where the value should
+   *                             be stored. Defaults to the config key
+   * @return {function} - an unbind function
+   */
+  this.bindToScope = function (scope, key, property = key) {
+    const onUpdate = (newVal) => {
+      scope[property] = newVal;
     };
 
-  });
+    return this.watch(key, onUpdate, scope);
+  };
 });

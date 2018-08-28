@@ -1,13 +1,32 @@
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-var _ = require('lodash');
-var ngMock = require('ngMock');
-var expect = require('expect.js');
+
+import _ from 'lodash';
+import ngMock from 'ng_mock';
+import expect from 'expect.js';
+import sinon from 'sinon';
 
 describe('$scope.$watchMulti', function () {
-  var sinon = require('auto-release-sinon');
 
-  var $rootScope;
-  var $scope;
+  let $rootScope;
+  let $scope;
 
   beforeEach(ngMock.module('kibana'));
   beforeEach(ngMock.inject(function ($injector) {
@@ -20,29 +39,29 @@ describe('$scope.$watchMulti', function () {
       expect($rootScope.$watchMulti).to.be.a('function');
       expect($scope).to.have.property('$watchMulti', $rootScope.$watchMulti);
 
-      var $isoScope = $scope.$new(true);
+      const $isoScope = $scope.$new(true);
       expect($isoScope).to.have.property('$watchMulti', $rootScope.$watchMulti);
     });
 
     it('returns a working unwatch function', function () {
       $scope.a = 0;
       $scope.b = 0;
-      var triggers = 0;
-      var unwatch = $scope.$watchMulti(['a', 'b'], function () { triggers++; });
+      let triggers = 0;
+      const unwatch = $scope.$watchMulti(['a', 'b'], function () { triggers++; });
 
       // initial watch
       $scope.$apply();
       expect(triggers).to.be(1);
 
-      // prove that it triggers on chagne
+      // prove that it triggers on change
       $scope.a++;
       $scope.$apply();
       expect(triggers).to.be(2);
 
       // remove watchers
-      expect($scope.$$watchers).to.not.eql([]);
+      expect($scope.$$watchers).to.not.have.length(0);
       unwatch();
-      expect($scope.$$watchers).to.eql([]);
+      expect($scope.$$watchers).to.have.length(0);
 
       // prove that it doesn't trigger anymore
       $scope.a++;
@@ -53,7 +72,7 @@ describe('$scope.$watchMulti', function () {
 
   describe('simple scope watchers', function () {
     it('only triggers a single watch on initialization', function () {
-      var stub = sinon.stub();
+      const stub = sinon.stub();
 
       $scope.$watchMulti([
         'one',
@@ -66,7 +85,7 @@ describe('$scope.$watchMulti', function () {
     });
 
     it('only triggers a single watch when multiple values change', function () {
-      var stub = sinon.spy(function (a, b) {});
+      const stub = sinon.spy(function () {});
 
       $scope.$watchMulti([
         'one',
@@ -86,45 +105,45 @@ describe('$scope.$watchMulti', function () {
     });
 
     it('passes an array of the current and previous values, in order',
-    function () {
-      var stub = sinon.spy(function (a, b) {});
+      function () {
+        const stub = sinon.spy(function () {});
 
-      $scope.one = 'a';
-      $scope.two = 'b';
-      $scope.three = 'c';
-      $scope.$watchMulti([
-        'one',
-        'two',
-        'three'
-      ], stub);
+        $scope.one = 'a';
+        $scope.two = 'b';
+        $scope.three = 'c';
+        $scope.$watchMulti([
+          'one',
+          'two',
+          'three'
+        ], stub);
 
-      $rootScope.$apply();
-      expect(stub.firstCall.args).to.eql([
-        ['a', 'b', 'c'],
-        ['a', 'b', 'c']
-      ]);
+        $rootScope.$apply();
+        expect(stub.firstCall.args).to.eql([
+          ['a', 'b', 'c'],
+          ['a', 'b', 'c']
+        ]);
 
-      $scope.one = 'do';
-      $scope.two = 're';
-      $scope.three = 'mi';
-      $rootScope.$apply();
+        $scope.one = 'do';
+        $scope.two = 're';
+        $scope.three = 'mi';
+        $rootScope.$apply();
 
-      expect(stub.secondCall.args).to.eql([
-        ['do', 're', 'mi'],
-        ['a', 'b', 'c']
-      ]);
-    });
+        expect(stub.secondCall.args).to.eql([
+          ['do', 're', 'mi'],
+          ['a', 'b', 'c']
+        ]);
+      });
 
     it('always has an up to date value', function () {
-      var count = 0;
+      let count = 0;
 
       $scope.vals = [1, 0];
-      $scope.$watchMulti([ 'vals[0]', 'vals[1]' ], function (cur, prev) {
+      $scope.$watchMulti([ 'vals[0]', 'vals[1]' ], function (cur) {
         expect(cur).to.eql($scope.vals);
         count++;
       });
 
-      var $child = $scope.$new();
+      const $child = $scope.$new();
       $child.$watch('vals[0]', function (cur) {
         $child.vals[1] = cur;
       });
@@ -135,16 +154,16 @@ describe('$scope.$watchMulti', function () {
   });
 
   describe('complex watch expressions', function () {
-    var stateWatchers;
-    var firstValue;
-    var secondValue;
+    let stateWatchers;
+    let firstValue;
+    let secondValue;
 
     beforeEach(function () {
-      var firstGetter = function () {
+      const firstGetter = function () {
         return firstValue;
       };
 
-      var secondGetter = function () {
+      const secondGetter = function () {
         return secondValue;
       };
 
@@ -158,7 +177,7 @@ describe('$scope.$watchMulti', function () {
     });
 
     it('should trigger the watcher on initialization', function () {
-      var stub = sinon.stub();
+      const stub = sinon.stub();
       firstValue = 'first';
       secondValue = 'second';
 
@@ -174,7 +193,7 @@ describe('$scope.$watchMulti', function () {
 
   describe('nested watchers', function () {
     it('should trigger the handler at least once', function () {
-      var $scope = $rootScope.$new();
+      const $scope = $rootScope.$new();
       $scope.$$watchers = [{
         get: _.noop,
         fn: _.noop,
@@ -187,8 +206,8 @@ describe('$scope.$watchMulti', function () {
         last: false
       }];
 
-      var first = sinon.stub();
-      var second = sinon.stub();
+      const first = sinon.stub();
+      const second = sinon.stub();
 
       function registerWatchers() {
         $scope.$watchMulti([first, second], function () {

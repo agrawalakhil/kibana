@@ -1,11 +1,12 @@
-var _ = require('lodash');
+import _ from 'lodash';
 
-module.exports = {
+export default {
   'label': '',
   'xAxisLabel': 'Top 5 extension',
   'yAxisLabel': 'Count of documents',
   'series': [
     {
+      'label': 'Count',
       'values': [
         {
           'x': 'jpg',

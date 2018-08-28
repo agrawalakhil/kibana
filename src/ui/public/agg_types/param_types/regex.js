@@ -1,71 +1,68 @@
-define(function (require) {
-  return function RegexAggParamFactory(Private) {
-    var _ = require('lodash');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-    var BaseAggParam = Private(require('ui/agg_types/param_types/base'));
-    var editorHtml = require('ui/agg_types/controls/regular_expression.html');
+import _ from 'lodash';
+import editorHtml from '../controls/regular_expression.html';
+import { BaseParamType } from './base';
+import { createLegacyClass } from '../../utils/legacy_class';
 
-    _.class(RegexAggParam).inherits(BaseAggParam);
-    function RegexAggParam(config) {
-      // Java RegExp flags
-      var flags = [
-        'CANON_EQ',
-        'CASE_INSENSITIVE',
-        'COMMENTS',
-        'DOTALL',
-        'LITERAL',
-        'MULTILINE',
-        'UNICODE_CASE',
-        'UNICODE_CHARACTER_CLASS',
-        'UNIX_LINES'
-      ];
+createLegacyClass(RegexParamType).inherits(BaseParamType);
+function RegexParamType(config) {
+  _.defaults(config, { pattern: '' });
+  RegexParamType.Super.call(this, config);
+}
 
-      _.defaults(config, { pattern: '', flags: flags });
-      RegexAggParam.Super.call(this, config);
-    }
+RegexParamType.prototype.editor = editorHtml;
 
-    RegexAggParam.prototype.editor = editorHtml;
+/**
+ * Disabled state of the agg param
+ *
+ * @return {bool}
+ */
+RegexParamType.prototype.disabled = function () {
+  return false;
+};
 
-    /**
-     * Disabled state of the agg param
-     *
-     * @return {bool}
-     */
-    RegexAggParam.prototype.disabled = function (aggConfig) {
-      return false;
-    };
+/**
+ * Write the aggregation parameter.
+ *
+ * @param  {AggConfig} aggConfig - the entire configuration for this agg
+ * @param  {object} output - the result of calling write on all of the aggregations
+ *                         parameters.
+ * @param  {object} output.params - the final object that will be included as the params
+ *                               for the agg
+ * @return {undefined}
+ */
+RegexParamType.prototype.write = function (aggConfig, output) {
+  const param = aggConfig.params[this.name];
+  const paramType = aggConfig.type.params.byName[this.name];
 
-    /**
-     * Write the aggregation parameter.
-     *
-     * @param  {AggConfig} aggConfig - the entire configuration for this agg
-     * @param  {object} output - the result of calling write on all of the aggregations
-     *                         parameters.
-     * @param  {object} output.params - the final object that will be included as the params
-     *                               for the agg
-     * @return {undefined}
-     */
-    RegexAggParam.prototype.write = function (aggConfig, output) {
-      var param = aggConfig.params[this.name];
-      var paramType = aggConfig.type.params.byName[this.name];
+  // clear aggParam if pattern is not set or is disabled
+  if (!param || !param.pattern || !param.pattern.length || paramType.disabled(aggConfig)) {
+    return;
+  }
 
-      // clear aggParam if pattern is not set or is disabled
-      if (!param || !param.pattern || !param.pattern.length || paramType.disabled(aggConfig)) {
-        return;
-      }
-
-      var obj = {
-        pattern: param.pattern
-      };
-
-      // include any selected flags
-      if (_.isArray(param.flags) && param.flags.length) {
-        obj.flags = param.flags.join('|');
-      }
-
-      output.params[this.name] = obj;
-    };
-
-    return RegexAggParam;
+  const obj = {
+    pattern: param.pattern
   };
-});
+
+  output.params[this.name] = obj;
+};
+
+export { RegexParamType };

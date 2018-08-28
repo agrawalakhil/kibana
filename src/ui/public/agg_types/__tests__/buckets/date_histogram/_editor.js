@@ -1,20 +1,43 @@
-describe('editor', function () {
-  var _ = require('lodash');
-  var $ = require('jquery');
-  var ngMock = require('ngMock');
-  var expect = require('expect.js');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  var indexPattern;
-  var vis;
-  var agg;
-  var render;
-  var $scope;
+import _ from 'lodash';
+import $ from 'jquery';
+import ngMock from 'ng_mock';
+import expect from 'expect.js';
+import FixturesStubbedLogstashIndexPatternProvider from 'fixtures/stubbed_logstash_index_pattern';
+import { VisProvider } from '../../../../vis';
+import { intervalOptions } from '../../../buckets/_interval_options';
+
+describe('editor', function () {
+
+  let indexPattern;
+  let vis;
+  let agg;
+  let render;
+  let $scope;
 
   beforeEach(ngMock.module('kibana'));
   beforeEach(ngMock.inject(function (Private, $injector, $compile) {
-    indexPattern = Private(require('fixtures/stubbed_logstash_index_pattern'));
+    indexPattern = Private(FixturesStubbedLogstashIndexPatternProvider);
 
-    var Vis = Private(require('ui/Vis'));
+    const Vis = Private(VisProvider);
 
     /**
      * Render the AggParams editor for the date histogram aggregation
@@ -29,26 +52,27 @@ describe('editor', function () {
     render = function (params) {
       vis = new Vis(indexPattern, {
         type: 'histogram',
-        aggs:[
+        aggs: [
           { schema: 'metric', type: 'avg', params: { field: 'bytes' } },
           { schema: 'segment', type: 'date_histogram', params: params || {} }
         ]
       });
 
-      var $el = $('<vis-editor-agg-params agg="agg" group-name="groupName"></vis-editor-agg-params>');
-      var $parentScope = $injector.get('$rootScope').$new();
+      const $el = $('<vis-editor-agg-params agg="agg" index-pattern="agg._indexPattern" group-name="groupName"></vis-editor-agg-params>');
+      const $parentScope = $injector.get('$rootScope').$new();
 
       agg = $parentScope.agg = vis.aggs.bySchemaName.segment[0];
       $parentScope.groupName = 'buckets';
+      $parentScope.vis = vis;
 
       $compile($el)($parentScope);
       $scope = $el.scope();
       $scope.$digest();
 
-      var $inputs = $('vis-agg-param-editor', $el);
+      const $inputs = $('vis-agg-param-editor', $el);
       return _.transform($inputs.toArray(), function (inputs, e) {
-        var $el = $(e);
-        var $scope = $el.scope();
+        const $el = $(e);
+        const $scope = $el.scope();
 
         inputs[$scope.aggParam.name] = {
           $el: $el,
@@ -66,13 +90,13 @@ describe('editor', function () {
   }));
 
   describe('random field/interval', function () {
-    var params;
-    var field;
-    var interval;
+    let params;
+    let field;
+    let interval;
 
-    beforeEach(ngMock.inject(function (Private) {
+    beforeEach(ngMock.inject(function () {
       field = _.sample(indexPattern.fields);
-      interval = _.sample(Private(require('ui/agg_types/buckets/_interval_options')));
+      interval = _.sample(intervalOptions);
       params = render({ field: field, interval: interval });
     }));
 
@@ -93,31 +117,5 @@ describe('editor', function () {
     });
   });
 
-  describe('interval "auto" and indexPattern timeField', function () {
-    var params;
-
-    beforeEach(function () {
-      params = render({ field: indexPattern.timeFieldName, interval: 'auto' });
-    });
-
-    it('clears the interval when the field is changed', function () {
-      expect(params.interval.modelValue().val).to.be('auto');
-      expect(params.field.modelValue().name).to.be(indexPattern.timeFieldName);
-
-      var field = _.find(indexPattern.fields, function (f) {
-        return f.type === 'date' && f.name !== indexPattern.timeFieldName;
-      });
-
-      params.field.$input()
-      .find('option')
-      .filter(function () {
-        return $(this).text().trim() === field.name;
-      })
-      .prop('selected', true);
-      params.field.$input().change();
-
-      expect(params.interval.modelValue()).to.be(undefined);
-    });
-  });
 
 });

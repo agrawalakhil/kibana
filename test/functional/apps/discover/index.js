@@ -1,32 +1,41 @@
-define(function (require) {
-  var bdd = require('intern!bdd');
-  var expect = require('intern/dojo/node!expect.js');
-  var config = require('intern').config;
-  var url = require('intern/dojo/node!url');
-  var _ = require('intern/dojo/node!lodash');
-  var Common = require('../../../support/pages/Common');
-  var ScenarioManager = require('intern/dojo/node!../../../fixtures/scenarioManager');
-  var discoverTest = require('./_discover');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  bdd.describe('discover app', function () {
-    var common;
-    var scenarioManager;
-    var remote;
-    var scenarioManager = new ScenarioManager(url.format(config.servers.elasticsearch));
-    this.timeout = 120000;
+export default function ({ getService, loadTestFile }) {
+  const esArchiver = getService('esArchiver');
+  const remote = getService('remote');
 
-    // on setup, we create an settingsPage instance
-    // that we will use for all the tests
-    bdd.before(function () {
-      common = new Common(this.remote);
-      remote = this.remote;
+  describe('discover app', function () {
+    before(function () {
+      return remote.setWindowSize(1200, 800);
     });
 
-    bdd.after(function unloadMakelogs() {
-      return scenarioManager.unload('logstashFunctional');
+    after(function unloadMakelogs() {
+      return esArchiver.unload('logstash_functional');
     });
 
-    discoverTest(bdd, scenarioManager);
-
+    loadTestFile(require.resolve('./_discover'));
+    loadTestFile(require.resolve('./_errors'));
+    loadTestFile(require.resolve('./_field_data'));
+    loadTestFile(require.resolve('./_shared_links'));
+    loadTestFile(require.resolve('./_sidebar'));
+    loadTestFile(require.resolve('./_source_filters'));
+    loadTestFile(require.resolve('./_large_string'));
   });
-});
+}

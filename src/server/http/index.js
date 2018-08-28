@@ -1,65 +1,66 @@
-module.exports = function (kbnServer, server, config) {
-  let _ = require('lodash');
-  let fs = require('fs');
-  let Boom = require('boom');
-  let Hapi = require('hapi');
-  let parse = require('url').parse;
-  let format = require('url').format;
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  let getDefaultRoute = require('./getDefaultRoute');
+import { format } from 'url';
+import { resolve } from 'path';
+import _ from 'lodash';
+import Boom from 'boom';
+import Hapi from 'hapi';
+import { setupVersionCheck } from './version_check';
+import { registerHapiPlugins } from './register_hapi_plugins';
+import { setupXsrf } from './xsrf';
 
-  server = kbnServer.server = new Hapi.Server();
+export default async function (kbnServer, server, config) {
+  kbnServer.server = new Hapi.Server();
+  server = kbnServer.server;
 
-  // Create a new connection
-  var connectionOptions = {
+  // Note that all connection options configured here should be exactly the same
+  // as in `getServerOptions()` in the new platform (see `src/core/server/http/http_tools`).
+  //
+  // The only exception is `tls` property: TLS is entirely handled by the new
+  // platform and we don't have to duplicate all TLS related settings here, we just need
+  // to indicate to Hapi connection that TLS is used so that it can use correct protocol
+  // name in `server.info` and `request.connection.info` that are used throughout Kibana.
+  //
+  // Any change SHOULD BE applied in both places.
+  server.connection({
     host: config.get('server.host'),
     port: config.get('server.port'),
+    tls: config.get('server.ssl.enabled'),
+    listener: kbnServer.newPlatform.proxyListener,
     state: {
-      strictHeader: false
+      strictHeader: false,
     },
     routes: {
-      cors: config.get('server.cors')
-    }
-  };
+      cors: config.get('server.cors'),
+      payload: {
+        maxBytes: config.get('server.maxPayloadBytes'),
+      },
+      validate: {
+        options: {
+          abortEarly: false,
+        },
+      },
+    },
+  });
 
-  // enable tls if ssl key and cert are defined
-  if (config.get('server.ssl.key') && config.get('server.ssl.cert')) {
-    connectionOptions.tls = {
-      key: fs.readFileSync(config.get('server.ssl.key')),
-      cert: fs.readFileSync(config.get('server.ssl.cert')),
-      // The default ciphers in node 0.12.x include insecure ciphers, so until
-      // we enforce a more recent version of node, we craft our own list
-      // @see https://github.com/nodejs/node/blob/master/src/node_constants.h#L8-L28
-      ciphers: [
-        'ECDHE-RSA-AES128-GCM-SHA256',
-        'ECDHE-ECDSA-AES128-GCM-SHA256',
-        'ECDHE-RSA-AES256-GCM-SHA384',
-        'ECDHE-ECDSA-AES256-GCM-SHA384',
-        'DHE-RSA-AES128-GCM-SHA256',
-        'ECDHE-RSA-AES128-SHA256',
-        'DHE-RSA-AES128-SHA256',
-        'ECDHE-RSA-AES256-SHA384',
-        'DHE-RSA-AES256-SHA384',
-        'ECDHE-RSA-AES256-SHA256',
-        'DHE-RSA-AES256-SHA256',
-        'HIGH',
-        '!aNULL',
-        '!eNULL',
-        '!EXPORT',
-        '!DES',
-        '!RC4',
-        '!MD5',
-        '!PSK',
-        '!SRP',
-        '!CAMELLIA'
-      ].join(':'),
-      // We use the server's cipher order rather than the client's to prevent
-      // the BEAST attack
-      honorCipherOrder: true
-    };
-  }
-
-  server.connection(connectionOptions);
+  registerHapiPlugins(server);
 
   // provide a simple way to expose static directories
   server.decorate('server', 'exposeStaticDir', function (routePath, dirPath) {
@@ -69,23 +70,11 @@ module.exports = function (kbnServer, server, config) {
       handler: {
         directory: {
           path: dirPath,
-          listing: true,
+          listing: false,
           lookupCompressed: true
         }
       },
-      config: {auth: false}
-    });
-  });
-
-  // provide a simple way to expose static files
-  server.decorate('server', 'exposeStaticFile', function (routePath, filePath) {
-    this.route({
-      path: routePath,
-      method: 'GET',
-      handler: {
-        file: filePath
-      },
-      config: {auth: false}
+      config: { auth: false }
     });
   });
 
@@ -94,33 +83,28 @@ module.exports = function (kbnServer, server, config) {
     this.views({
       path: path,
       isCached: config.get('optimize.viewCaching'),
-      engines: _.assign({ jade: require('jade') }, engines || {})
-    });
-  });
-
-  server.decorate('server', 'redirectToSlash', function (route) {
-    this.route({
-      path: route,
-      method: 'GET',
-      handler: function (req, reply) {
-        return reply.redirect(format({
-          search: req.url.search,
-          pathname: req.url.pathname + '/',
-        }));
-      }
+      engines: _.assign({ pug: require('pug') }, engines || {})
     });
   });
 
   // attach the app name to the server, so we can be sure we are actually talking to kibana
   server.ext('onPreResponse', function (req, reply) {
-    let response = req.response;
+    const response = req.response;
+
+    const customHeaders = {
+      ...config.get('server.customResponseHeaders'),
+      'kbn-name': kbnServer.name,
+    };
 
     if (response.isBoom) {
-      response.output.headers['x-app-name'] = kbnServer.name;
-      response.output.headers['x-app-version'] = kbnServer.version;
+      response.output.headers = {
+        ...response.output.headers,
+        ...customHeaders
+      };
     } else {
-      response.header('x-app-name', kbnServer.name);
-      response.header('x-app-version', kbnServer.version);
+      Object.keys(customHeaders).forEach(name => {
+        response.header(name, customHeaders[name]);
+      });
     }
 
     return reply.continue();
@@ -129,11 +113,10 @@ module.exports = function (kbnServer, server, config) {
   server.route({
     path: '/',
     method: 'GET',
-    handler: function (req, reply) {
-      return reply.view('rootRedirect', {
-        hashRoute: `${config.get('server.basePath')}/app/kibana`,
-        defaultRoute: getDefaultRoute(kbnServer),
-      });
+    handler(req, reply) {
+      const basePath = config.get('server.basePath');
+      const defaultRoute = config.get('server.defaultRoute');
+      reply.redirect(`${basePath}${defaultRoute}`);
     }
   });
 
@@ -141,18 +124,23 @@ module.exports = function (kbnServer, server, config) {
     method: 'GET',
     path: '/{p*}',
     handler: function (req, reply) {
-      let path = req.path;
+      const path = req.path;
       if (path === '/' || path.charAt(path.length - 1) !== '/') {
         return reply(Boom.notFound());
       }
-
+      const pathPrefix = config.get('server.basePath') ? `${config.get('server.basePath')}/` : '';
       return reply.redirect(format({
         search: req.url.search,
-        pathname: path.slice(0, -1),
+        pathname: pathPrefix + path.slice(0, -1),
       }))
-      .permanent(true);
+        .permanent(true);
     }
   });
 
-  return kbnServer.mixin(require('./xsrf'));
-};
+  // Expose static assets (fonts, favicons).
+  server.exposeStaticDir('/ui/fonts/{path*}', resolve(__dirname, '../../ui/public/assets/fonts'));
+  server.exposeStaticDir('/ui/favicons/{path*}', resolve(__dirname, '../../ui/public/assets/favicons'));
+
+  setupVersionCheck(server, config);
+  setupXsrf(server, config);
+}

@@ -1,32 +1,55 @@
-define(function (require) {
-  return function PointSeriesProvider(Private) {
-    var _ = require('lodash');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-    var getSeries = Private(require('ui/agg_response/point_series/_get_series'));
-    var getAspects = Private(require('ui/agg_response/point_series/_get_aspects'));
-    var initYAxis = Private(require('ui/agg_response/point_series/_init_y_axis'));
-    var initXAxis = Private(require('ui/agg_response/point_series/_init_x_axis'));
-    var setupOrderedDateXAxis = Private(require('ui/agg_response/point_series/_ordered_date_axis'));
-    var tooltipFormatter = Private(require('ui/agg_response/point_series/_tooltip_formatter'));
+import { PointSeriesGetSeriesProvider } from './_get_series';
+import { PointSeriesGetAspectsProvider } from './_get_aspects';
+import { PointSeriesInitYAxisProvider } from './_init_y_axis';
+import { PointSeriesInitXAxisProvider } from './_init_x_axis';
+import { PointSeriesOrderedDateAxisProvider } from './_ordered_date_axis';
+import { PointSeriesTooltipFormatter } from './_tooltip_formatter';
 
-    return function pointSeriesChartDataFromTable(vis, table) {
-      var chart = {};
-      var aspects = chart.aspects = getAspects(vis, table);
+export function AggResponsePointSeriesProvider(Private) {
 
-      chart.tooltipFormatter = tooltipFormatter;
+  const getSeries = Private(PointSeriesGetSeriesProvider);
+  const getAspects = Private(PointSeriesGetAspectsProvider);
+  const initYAxis = Private(PointSeriesInitYAxisProvider);
+  const initXAxis = Private(PointSeriesInitXAxisProvider);
+  const setupOrderedDateXAxis = Private(PointSeriesOrderedDateAxisProvider);
+  const tooltipFormatter = Private(PointSeriesTooltipFormatter);
 
-      initXAxis(chart);
-      initYAxis(chart);
+  return function pointSeriesChartDataFromTable(vis, table) {
+    const chart = {};
+    const aspects = chart.aspects = getAspects(vis, table);
 
-      var datedX = aspects.x.agg.type.ordered && aspects.x.agg.type.ordered.date;
-      if (datedX) {
-        setupOrderedDateXAxis(vis, chart);
-      }
+    chart.tooltipFormatter = tooltipFormatter;
 
-      chart.series = getSeries(table.rows, chart);
+    initXAxis(chart);
+    initYAxis(chart);
 
-      delete chart.aspects;
-      return chart;
-    };
+    const datedX = aspects.x.agg.type.ordered && aspects.x.agg.type.ordered.date;
+    if (datedX) {
+      setupOrderedDateXAxis(vis, chart);
+    }
+
+    chart.series = getSeries(table.rows, chart);
+
+    delete chart.aspects;
+    return chart;
   };
-});
+}

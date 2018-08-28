@@ -1,24 +1,48 @@
-define(function (require) {
-  return function stubbedLogstashIndexPatternService(Private) {
-    var StubIndexPattern = Private(require('testUtils/stubIndexPattern'));
-    var fieldTypes = Private(require('ui/index_patterns/_field_types'));
-    var mockLogstashFields = Private(require('fixtures/logstash_fields'));
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-    var _ = require('lodash');
+import TestUtilsStubIndexPatternProvider from 'test_utils/stub_index_pattern';
+import FixturesLogstashFieldsProvider from 'fixtures/logstash_fields';
+import { getKbnFieldType } from '../utils';
 
-    var fields = mockLogstashFields.map(function (field) {
-      field.displayName = field.name;
-      var type = fieldTypes.byName[field.type];
-      if (!type) throw new TypeError('unknown type ' + field.type);
-      if (!_.has(field, 'sortable')) field.sortable = type.sortable;
-      if (!_.has(field, 'filterable')) field.filterable = type.filterable;
-      return field;
-    });
+export default function stubbedLogstashIndexPatternService(Private) {
+  const StubIndexPattern = Private(TestUtilsStubIndexPatternProvider);
+  const mockLogstashFields = Private(FixturesLogstashFieldsProvider);
 
-    var indexPattern = new StubIndexPattern('logstash-*', 'time', fields);
-    indexPattern.id = 'logstash-*';
+  const fields = mockLogstashFields.map(function (field) {
+    const kbnType = getKbnFieldType(field.type);
 
-    return indexPattern;
+    if (kbnType.name === 'unknown') {
+      throw new TypeError(`unknown type ${field.type}`);
+    }
 
-  };
-});
+    return {
+      ...field,
+      sortable: ('sortable' in field) ? !!field.sortable : kbnType.sortable,
+      filterable: ('filterable' in field) ? !!field.filterable : kbnType.filterable,
+      displayName: field.name,
+    };
+  });
+
+  const indexPattern = new StubIndexPattern('logstash-*', 'time', fields);
+  indexPattern.id = 'logstash-*';
+
+  return indexPattern;
+
+}

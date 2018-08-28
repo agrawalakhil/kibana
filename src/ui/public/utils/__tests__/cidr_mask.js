@@ -1,6 +1,24 @@
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-var CidrMask = require('ui/utils/CidrMask');
-var expect = require('expect.js');
+import expect from 'expect.js';
+import { CidrMask } from '../cidr_mask';
 
 describe('CidrMask', function () {
   it('should throw errors with invalid CIDR masks', function () {
@@ -42,7 +60,7 @@ describe('CidrMask', function () {
   });
 
   it('should correctly grab IP address and prefix length', function () {
-    var mask = new CidrMask('0.0.0.0/1');
+    let mask = new CidrMask('0.0.0.0/1');
     expect(mask.initialAddress.toString()).to.be('0.0.0.0');
     expect(mask.prefixLength).to.be(1);
 
@@ -52,8 +70,8 @@ describe('CidrMask', function () {
   });
 
   it('should calculate a range of IP addresses', function () {
-    var mask = new CidrMask('0.0.0.0/1');
-    var range = mask.getRange();
+    let mask = new CidrMask('0.0.0.0/1');
+    let range = mask.getRange();
     expect(range.from.toString()).to.be('0.0.0.0');
     expect(range.to.toString()).to.be('127.255.255.255');
 
@@ -69,7 +87,7 @@ describe('CidrMask', function () {
   });
 
   it('toString()', function () {
-    var mask = new CidrMask('.../1');
+    let mask = new CidrMask('.../1');
     expect(mask.toString()).to.be('0.0.0.0/1');
 
     mask = new CidrMask('128.0.0.1/31');

@@ -1,156 +1,257 @@
-define(function (require) {
-  var html = require('ui/timepicker/timepicker.html');
-  var module = require('ui/modules').get('ui/timepicker');
-  var _ = require('lodash');
-  var dateMath = require('ui/utils/dateMath');
-  var moment = require('moment');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  require('ui/directives/input_datetime');
-  require('ui/directives/inequality');
-  require('ui/timepicker/quick_ranges');
-  require('ui/timepicker/refresh_intervals');
-  require('ui/timepicker/time_units');
+import html from './timepicker.html';
+import './quick_panel';
+import './recent_panel';
+import './relative_panel';
+import './absolute_panel';
+import _ from 'lodash';
+import { relativeOptions } from './relative_options';
+import { parseRelativeParts } from './parse_relative_parts';
+import dateMath from '@kbn/datemath';
+import moment from 'moment';
+import './timepicker.less';
+import '../directives/input_datetime';
+import '../directives/inequality';
+import './refresh_intervals';
+import './kbn_global_timepicker';
+import { uiModules } from '../modules';
+import { TIME_MODES } from './modes';
+import { timeUnits } from './time_units';
+import { prettyInterval } from './pretty_interval';
+const module = uiModules.get('ui/timepicker');
 
-  module.directive('kbnTimepicker', function (quickRanges, timeUnits, refreshIntervals) {
-    return {
-      restrict: 'E',
-      scope: {
-        from: '=',
-        to: '=',
-        mode: '=',
-        interval: '=',
-        activeTab: '='
-      },
-      template: html,
-      controller: function ($scope) {
-        var init = function () {
-          $scope.setMode($scope.mode);
-        };
+module.directive('kbnTimepicker', function (refreshIntervals) {
+  return {
+    restrict: 'E',
+    scope: {
+      from: '=',
+      to: '=',
+      mode: '=',
+      interval: '=',
+      activeTab: '=',
+      onFilterSelect: '&',
+      onIntervalSelect: '&'
+    },
+    template: html,
+    controller: function ($scope) {
+      $scope.format = 'MMMM Do YYYY, HH:mm:ss.SSS';
+      $scope.modes = Object.values(TIME_MODES);
+      $scope.activeTab = $scope.activeTab || 'filter';
 
-        $scope.format = 'MMMM Do YYYY, HH:mm:ss.SSS';
-        $scope.modes = ['quick', 'relative', 'absolute'];
-        $scope.activeTab = $scope.activeTab || 'filter';
+      if (_.isUndefined($scope.mode)) $scope.mode = TIME_MODES.QUICK;
 
-        if (_.isUndefined($scope.mode)) $scope.mode = 'quick';
+      $scope.refreshLists = _(refreshIntervals).groupBy('section').values().value();
 
-        $scope.quickLists = _(quickRanges).groupBy('section').values().value();
-        $scope.refreshLists = _(refreshIntervals).groupBy('section').values().value();
-
-        $scope.relative = {
+      $scope.relative = {
+        from: {
           count: 1,
           unit: 'm',
           preview: undefined,
           round: false
-        };
+        },
+        to: {
+          count: 0,
+          unit: 's',
+          preview: undefined,
+          round: false
+        }
+      };
 
-        $scope.absolute = {
-          from: moment(),
-          to: moment()
-        };
+      $scope.absolute = {
+        from: moment(),
+        to: moment()
+      };
 
-        $scope.units = timeUnits;
+      $scope.units = timeUnits;
 
-        $scope.relativeOptions = [
-          {text: 'Seconds ago', value: 's'},
-          {text: 'Minutes ago', value: 'm'},
-          {text: 'Hours ago', value: 'h'},
-          {text: 'Days ago', value: 'd'},
-          {text: 'Weeks ago', value: 'w'},
-          {text: 'Months ago', value: 'M'},
-          {text: 'Years ago', value: 'y'},
-        ];
+      $scope.relativeOptions = relativeOptions;
 
-        $scope.$watch('absolute.from', function (date) {
-          if (_.isDate(date)) $scope.absolute.from = moment(date);
-        });
+      $scope.$watch('from', function (date) {
+        if (moment.isMoment(date) && $scope.mode === TIME_MODES.ABSOLUTE) {
+          $scope.absolute.from = date;
+        }
+      });
 
-        $scope.$watch('absolute.to', function (date) {
-          if (_.isDate(date)) $scope.absolute.to = moment(date);
-        });
+      $scope.$watch('to', function (date) {
+        if (moment.isMoment(date) && $scope.mode === TIME_MODES.ABSOLUTE) {
+          $scope.absolute.to = date;
+        }
+      });
 
-        $scope.setMode = function (thisMode) {
-          switch (thisMode) {
-            case 'quick':
-              break;
-            case 'relative':
-              var fromParts = $scope.from.toString().split('-');
-              var relativeParts = [];
-
-              // Try to parse the relative time, if we can't use moment duration to guestimate
-              if ($scope.to.toString() === 'now' && fromParts[0] === 'now' && fromParts[1]) {
-                relativeParts = fromParts[1].match(/([0-9]+)([smhdwMy]).*/);
-              }
-              if (relativeParts[1] && relativeParts[2]) {
-                $scope.relative.count = parseInt(relativeParts[1], 10);
-                $scope.relative.unit = relativeParts[2];
-              } else {
-                var duration = moment.duration(moment().diff(dateMath.parse($scope.from)));
-                var units = _.pluck(_.clone($scope.relativeOptions).reverse(), 'value');
-                if ($scope.from.toString().split('/')[1]) $scope.relative.round = true;
-                for (var i = 0; i < units.length; i++) {
-                  var as = duration.as(units[i]);
-                  if (as > 1) {
-                    $scope.relative.count = Math.round(as);
-                    $scope.relative.unit = units[i];
-                    break;
-                  }
-                }
-              }
-
-              if ($scope.from.toString().split('/')[1]) $scope.relative.round = true;
-              $scope.formatRelative();
-
-              break;
-            case 'absolute':
-              $scope.absolute.from = dateMath.parse($scope.from || moment().subtract('minutes', 15));
-              $scope.absolute.to = dateMath.parse($scope.to || moment(), true);
-              break;
-          }
-
-          $scope.mode = thisMode;
-        };
-
-        $scope.setQuick = function (from, to, description) {
-          $scope.from = from;
-          $scope.to = to;
-        };
-
-        $scope.setToNow = function () {
-          $scope.absolute.to = moment();
-        };
-
-        $scope.formatRelative = function () {
-          var parsed = dateMath.parse(getRelativeString());
-          $scope.relative.preview =  parsed ? parsed.format($scope.format) : undefined;
-          return parsed;
-        };
-
-        $scope.applyRelative = function () {
-          $scope.from = getRelativeString();
-          $scope.to = 'now';
-        };
-
-        function getRelativeString() {
-          return 'now-' + $scope.relative.count + $scope.relative.unit + ($scope.relative.round ? '/' + $scope.relative.unit : '');
+      // If we always return a new object from the getters below (pickFromDate and pickToDate) we'll create an
+      // infinite digest loop, so we maintain these copies to return instead.
+      $scope.$watch('absolute.from', function (newDate) {
+        if (!newDate) {
+          return;
         }
 
-        $scope.applyAbsolute = function () {
-          $scope.from = moment($scope.absolute.from);
-          $scope.to = moment($scope.absolute.to);
-        };
+        _.set($scope, 'browserAbsolute.from', new Date(newDate.year(), newDate.month(), newDate.date()));
+      });
 
-        $scope.setRefreshInterval = function (interval) {
-          interval = _.clone(interval);
-          console.log('before: ' + interval.pause);
-          interval.pause = (interval.pause == null || interval.pause === false) ? false : true;
+      $scope.$watch('absolute.to', function (newDate) {
+        if (!newDate) {
+          return;
+        }
 
-          console.log('after: ' + interval.pause);
-          $scope.interval = interval;
-        };
+        _.set($scope, 'browserAbsolute.to', new Date(newDate.year(), newDate.month(), newDate.date()));
+      });
 
-        init();
+      // The datepicker directive uses native JavaScript Dates, ignoring moment's default timezone. This causes
+      // the datepicker and the text input above it to get out of sync if the user changed the `dateFormat:tz` config
+      // in advanced settings. The text input will show the date in the user selected timezone, the datepicker will
+      // show the date in the local browser timezone. Since we really just want a day, month, year from the datepicker
+      // instead of a moment in time, we grab those individual values from the native date.
+      $scope.pickFromDate = function (date) {
+        if (!date) return _.get($scope, 'browserAbsolute.from');
+
+        const defaultTimeZoneDate = moment({
+          year: date.getFullYear(),
+          month: date.getMonth(),
+          day: date.getDate(),
+          hour: 0,
+          minute: 0,
+          second: 0,
+          millisecond: 0,
+        });
+        return $scope.absolute.from = defaultTimeZoneDate;
+      };
+
+      $scope.pickToDate = function (date) {
+        if (!date) return _.get($scope, 'browserAbsolute.to');
+
+        const defaultTimeZoneDate = moment({
+          year: date.getFullYear(),
+          month: date.getMonth(),
+          day: date.getDate(),
+          hour: 23,
+          minute: 59,
+          second: 59,
+          millisecond: 999,
+        });
+        return $scope.absolute.to = defaultTimeZoneDate;
+      };
+
+      $scope.setMode = function (thisMode) {
+        switch (thisMode) {
+          case TIME_MODES.QUICK:
+            break;
+          case TIME_MODES.RECENT:
+            break;
+          case TIME_MODES.RELATIVE:
+            $scope.relative = parseRelativeParts($scope.from, $scope.to);
+            $scope.formatRelative('from');
+            $scope.formatRelative('to');
+            break;
+          case TIME_MODES.ABSOLUTE:
+            $scope.absolute.from = dateMath.parse($scope.from || moment().subtract(15, 'minutes'));
+            $scope.absolute.to = dateMath.parse($scope.to || moment(), { roundUp: true });
+            break;
+        }
+
+        $scope.mode = thisMode;
+      };
+
+      $scope.setQuick = function (from, to) {
+        $scope.onFilterSelect({ from, to, mode: TIME_MODES.QUICK });
+      };
+
+      $scope.setToNow = function (key) {
+        $scope.absolute[key] = moment();
+      };
+
+      $scope.setRelativeToNow = function (key) {
+        $scope.relative[key].count = 0;
+        $scope.relative[key].round = false;
+        $scope.formatRelative(key);
+      };
+
+      $scope.checkRelative = function () {
+        if ($scope.relative.from.count != null && $scope.relative.to.count != null) {
+          const from = dateMath.parse(getRelativeString('from'));
+          const to = dateMath.parse(getRelativeString('to'), { roundUp: true });
+          if (to && from) return to.isBefore(from);
+          return true;
+        }
+      };
+
+      $scope.formatRelative = function (key) {
+        const relativeString = getRelativeString(key);
+        const parsed = dateMath.parse(relativeString, { roundUp: key === 'to' });
+        let preview;
+        if (relativeString === 'now') {
+          preview = 'Now';
+        } else {
+          preview = parsed ? parsed.format($scope.format) : undefined;
+        }
+        _.set($scope, `relative.${key}.preview`, preview);
+        return parsed;
+      };
+
+      $scope.applyRelative = function () {
+        $scope.onFilterSelect({
+          from: getRelativeString('from'),
+          to: getRelativeString('to'),
+          mode: TIME_MODES.RELATIVE,
+        });
+      };
+
+      function getRelativeString(key) {
+        const count = _.get($scope, `relative.${key}.count`, 0);
+        const round = _.get($scope, `relative.${key}.round`, false);
+        const matches = _.get($scope, `relative.${key}.unit`, 's').match(/([smhdwMy])(\+)?/);
+        let unit;
+        let operator = '-';
+        if (matches && matches[1]) unit = matches[1];
+        if (matches && matches[2]) operator = matches[2];
+        if (count === 0 && !round) return 'now';
+        let result = `now${operator}${count}${unit}`;
+        result += (round ? '/' + unit : '');
+        return result;
       }
-    };
-  });
 
+      $scope.applyAbsolute = function () {
+        $scope.onFilterSelect({
+          from: moment($scope.absolute.from),
+          to: moment($scope.absolute.to),
+          mode: TIME_MODES.ABSOLUTE,
+        });
+      };
+
+      $scope.prettyInterval = function (interval) {
+        return prettyInterval(interval.value);
+      };
+
+      $scope.setRefreshInterval = function (interval) {
+        interval = _.clone(interval || {});
+        interval.pause = (interval.pause == null || interval.pause === false) ? false : true;
+
+        $scope.onIntervalSelect({
+          interval: {
+            value: interval.value,
+            pause: interval.pause,
+          }
+        });
+      };
+
+      $scope.setMode($scope.mode);
+    }
+  };
 });

@@ -1,77 +1,111 @@
-define(function (require) {
-  var _ = require('lodash');
-  var modules = require('ui/modules');
-  var urlParam = '_a';
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  function AppStateProvider(Private, $rootScope, getAppState) {
-    var State = Private(require('ui/state_management/state'));
-    var PersistedState = Private(require('ui/persisted_state/persisted_state'));
-    var persistedStates;
-    var eventUnsubscribers;
+/**
+ * @name AppState
+ *
+ * @extends State
+ *
+ * @description Inherits State, which inherits Events. This class seems to be
+ * concerned with mapping "props" to PersistedState instances, and surfacing the
+ * ability to destroy those mappings.
+ */
 
-    _.class(AppState).inherits(State);
-    function AppState(defaults) {
-      persistedStates = {};
-      eventUnsubscribers = [];
+import { uiModules } from '../modules';
+import { StateProvider } from './state';
+import '../persisted_state';
+import { createLegacyClass } from '../utils/legacy_class';
+import { callEach } from '../utils/function';
 
-      AppState.Super.call(this, urlParam, defaults);
-      getAppState._set(this);
-    }
+const urlParam = '_a';
 
-    // if the url param is missing, write it back
-    AppState.prototype._persistAcrossApps = false;
+export function AppStateProvider(Private, $rootScope, $location, $injector) {
+  const State = Private(StateProvider);
+  const PersistedState = $injector.get('PersistedState');
+  let persistedStates;
+  let eventUnsubscribers;
 
-    AppState.prototype.destroy = function () {
-      AppState.Super.prototype.destroy.call(this);
-      getAppState._set(null);
-      _.callEach(eventUnsubscribers);
-    };
+  createLegacyClass(AppState).inherits(State);
+  function AppState(defaults) {
+    // Initialize persistedStates. This object maps "prop" names to
+    // PersistedState instances. These are used to make properties "stateful".
+    persistedStates = {};
 
-    AppState.prototype.makeStateful = function (prop) {
-      if (persistedStates[prop]) return persistedStates[prop];
-      var self = this;
+    // Initialize eventUnsubscribers. These will be called in `destroy`, to
+    // remove handlers for the 'change' and 'fetch_with_changes' events which
+    // are dispatched via the rootScope.
+    eventUnsubscribers = [];
 
-      // set up the ui state
-      persistedStates[prop] = new PersistedState();
-
-      // update the app state when the stateful instance changes
-      var updateOnChange = function () {
-        var replaceState = false; // TODO: debouncing logic
-
-        self[prop] = persistedStates[prop].getChanges();
-        self.save(replaceState);
-      };
-      var handlerOnChange = (method) => persistedStates[prop][method]('change', updateOnChange);
-      handlerOnChange('on');
-      eventUnsubscribers.push(() => handlerOnChange('off'));
-
-      // update the stateful object when the app state changes
-      var persistOnChange = function (changes) {
-        if (!changes) return;
-
-        if (changes.indexOf(prop) !== -1) {
-          persistedStates[prop].set(self[prop]);
-        }
-      };
-      var handlePersist = (method) => this[method]('fetch_with_changes', persistOnChange);
-      handlePersist('on');
-      eventUnsubscribers.push(() => handlePersist('off'));
-
-      // if the thing we're making stateful has an appState value, write to persisted state
-      if (self[prop]) persistedStates[prop].setSilent(self[prop]);
-
-      return persistedStates[prop];
-    };
-
-    return AppState;
+    AppState.Super.call(this, urlParam, defaults);
+    AppState.getAppState._set(this);
   }
 
-  modules.get('kibana/global_state')
-  .factory('AppState', function (Private) {
-    return Private(AppStateProvider);
-  })
-  .service('getAppState', function ($location) {
-    var currentAppState;
+  // if the url param is missing, write it back
+  AppState.prototype._persistAcrossApps = false;
+
+  AppState.prototype.destroy = function () {
+    AppState.Super.prototype.destroy.call(this);
+    AppState.getAppState._set(null);
+    callEach(eventUnsubscribers);
+  };
+
+  /**
+   * @returns PersistedState instance.
+   */
+  AppState.prototype.makeStateful = function (prop) {
+    if (persistedStates[prop]) return persistedStates[prop];
+    const self = this;
+
+    // set up the ui state
+    persistedStates[prop] = new PersistedState();
+
+    // update the app state when the stateful instance changes
+    const updateOnChange = function () {
+      const replaceState = false; // TODO: debouncing logic
+      self[prop] = persistedStates[prop].getChanges();
+      // Save state to the URL.
+      self.save(replaceState);
+    };
+    const handlerOnChange = (method) => persistedStates[prop][method]('change', updateOnChange);
+    handlerOnChange('on');
+    eventUnsubscribers.push(() => handlerOnChange('off'));
+
+    // update the stateful object when the app state changes
+    const persistOnChange = function (changes) {
+      if (!changes) return;
+
+      if (changes.indexOf(prop) !== -1) {
+        persistedStates[prop].set(self[prop]);
+      }
+    };
+    const handlePersist = (method) => this[method]('fetch_with_changes', persistOnChange);
+    handlePersist('on');
+    eventUnsubscribers.push(() => handlePersist('off'));
+
+    // if the thing we're making stateful has an appState value, write to persisted state
+    if (self[prop]) persistedStates[prop].setSilent(self[prop]);
+
+    return persistedStates[prop];
+  };
+
+  AppState.getAppState = (function () {
+    let currentAppState;
 
     function get() {
       return currentAppState;
@@ -79,7 +113,7 @@ define(function (require) {
 
     // Checks to see if the appState might already exist, even if it hasn't been newed up
     get.previouslyStored = function () {
-      var search = $location.search();
+      const search = $location.search();
       return search[urlParam] ? true : false;
     };
 
@@ -88,7 +122,16 @@ define(function (require) {
     };
 
     return get;
+  }());
+
+  return AppState;
+}
+
+uiModules.get('kibana/global_state')
+  .factory('AppState', function (Private) {
+    return Private(AppStateProvider);
+  })
+  .service('getAppState', function (Private) {
+    return Private(AppStateProvider).getAppState;
   });
 
-  return AppStateProvider;
-});

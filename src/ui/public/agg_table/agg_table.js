@@ -1,46 +1,73 @@
-define(function (require) {
-  require('ui/paginated_table');
-  require('ui/compile_recursive_directive');
-  require('ui/agg_table/agg_table.less');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  require('ui/modules')
-  .get('kibana')
-  .directive('kbnAggTable', function ($filter, config, Private, compileRecursiveDirective) {
-    var _ = require('lodash');
+import 'angular';
+import 'angular-recursion';
+import '../paginated_table';
+import './agg_table.less';
+import _ from 'lodash';
+import { uiModules } from '../modules';
+import aggTableTemplate from './agg_table.html';
+import { fieldFormats } from '../registry/field_formats';
+
+uiModules
+  .get('kibana', ['RecursionHelper'])
+  .directive('kbnAggTable', function ($filter, config, Private, RecursionHelper) {
+
+    const numberFormatter = fieldFormats.getDefaultInstance('number').getConverterFor('text');
 
     return {
       restrict: 'E',
-      template: require('ui/agg_table/agg_table.html'),
+      template: aggTableTemplate,
       scope: {
         table: '=',
-        perPage: '=?'
+        perPage: '=?',
+        sort: '=?',
+        exportTitle: '=?',
+        showTotal: '=',
+        totalFunc: '='
       },
       controllerAs: 'aggTable',
       compile: function ($el) {
-        // Use the compile function from the RecursionHelper,
-        // And return the linking function(s) which it returns
-        return compileRecursiveDirective.compile($el);
+      // Use the compile function from the RecursionHelper,
+      // And return the linking function(s) which it returns
+        return RecursionHelper.compile($el);
       },
       controller: function ($scope) {
-        var self = this;
+        const self = this;
 
-        self.sort = null;
-        self._saveAs = require('@spalger/filesaver').saveAs;
+        self._saveAs = require('@elastic/filesaver').saveAs;
         self.csv = {
           separator: config.get('csv:separator'),
           quoteValues: config.get('csv:quoteValues')
         };
 
         self.exportAsCsv = function (formatted) {
-          var csv = new Blob([self.toCsv(formatted)], { type: 'text/plain' });
+          const csv = new Blob([self.toCsv(formatted)], { type: 'text/plain;charset=utf-8' });
           self._saveAs(csv, self.csv.filename);
         };
 
         self.toCsv = function (formatted) {
-          var rows = $scope.table.rows;
-          var columns = formatted ? $scope.formattedColumns : $scope.table.columns;
-          var nonAlphaNumRE = /[^a-zA-Z0-9]/;
-          var allDoubleQuoteRE = /"/g;
+          const rows = $scope.table.rows;
+          const columns = formatted ? $scope.formattedColumns : $scope.table.columns;
+          const nonAlphaNumRE = /[^a-zA-Z0-9]/;
+          const allDoubleQuoteRE = /"/g;
 
           function escape(val) {
             if (!formatted && _.isObject(val)) val = val.valueOf();
@@ -52,7 +79,7 @@ define(function (require) {
           }
 
           // escape each cell in each row
-          var csvRows = rows.map(function (row) {
+          const csvRows = rows.map(function (row) {
             return row.map(escape);
           });
 
@@ -67,7 +94,7 @@ define(function (require) {
         };
 
         $scope.$watch('table', function () {
-          var table = $scope.table;
+          const table = $scope.table;
 
           if (!table) {
             $scope.rows = null;
@@ -75,20 +102,82 @@ define(function (require) {
             return;
           }
 
-          self.csv.filename = (table.title() || 'table') + '.csv';
+          self.csv.filename = ($scope.exportTitle || table.title() || 'table') + '.csv';
           $scope.rows = table.rows;
           $scope.formattedColumns = table.columns.map(function (col, i) {
-            var agg = $scope.table.aggConfig(col);
-            var field = agg.field();
-            var formattedColumn = {
+            const agg = $scope.table.aggConfig(col);
+            const field = agg.getField();
+            const formattedColumn = {
               title: col.title,
               filterable: field && field.filterable && agg.schema.group === 'buckets'
             };
 
-            var last = i === (table.columns.length - 1);
+            const last = i === (table.columns.length - 1);
 
             if (last || (agg.schema.group === 'metrics')) {
               formattedColumn.class = 'visualize-table-right';
+            }
+
+            let isFieldNumeric = false;
+            let isFieldDate = false;
+            const aggType = agg.type;
+            if (aggType && aggType.type === 'metrics') {
+              if (aggType.name === 'top_hits') {
+                if (agg._opts.params.aggregate !== 'concat') {
+                // all other aggregate types for top_hits output numbers
+                // so treat this field as numeric
+                  isFieldNumeric = true;
+                }
+              } else if(aggType.name === 'cardinality') {
+                // Unique count aggregations always produce a numeric value
+                isFieldNumeric = true;
+              } else if (field) {
+              // if the metric has a field, check if it is either number or date
+                isFieldNumeric = field.type === 'number';
+                isFieldDate = field.type === 'date';
+              } else {
+              // if there is no field, then it is count or similar so just say number
+                isFieldNumeric = true;
+              }
+            } else if (field) {
+              isFieldNumeric = field.type === 'number';
+              isFieldDate = field.type === 'date';
+            }
+
+            if (isFieldNumeric || isFieldDate || $scope.totalFunc === 'count') {
+              function sum(tableRows) {
+                return _.reduce(tableRows, function (prev, curr) {
+                // some metrics return undefined for some of the values
+                // derivative is an example of this as it returns undefined in the first row
+                  if (curr[i].value === undefined) return prev;
+                  return prev + curr[i].value;
+                }, 0);
+              }
+              const formatter = agg.fieldFormatter('text');
+
+              switch ($scope.totalFunc) {
+                case 'sum':
+                  if (!isFieldDate) {
+                    formattedColumn.total = formatter(sum(table.rows));
+                  }
+                  break;
+                case 'avg':
+                  if (!isFieldDate) {
+                    formattedColumn.total = formatter(sum(table.rows) / table.rows.length);
+                  }
+                  break;
+                case 'min':
+                  formattedColumn.total = formatter(_.chain(table.rows).map(i).map('value').min().value());
+                  break;
+                case 'max':
+                  formattedColumn.total = formatter(_.chain(table.rows).map(i).map('value').max().value());
+                  break;
+                case 'count':
+                  formattedColumn.total = numberFormatter(table.rows.length);
+                  break;
+                default:
+                  break;
+              }
             }
 
             return formattedColumn;
@@ -97,4 +186,3 @@ define(function (require) {
       }
     };
   });
-});

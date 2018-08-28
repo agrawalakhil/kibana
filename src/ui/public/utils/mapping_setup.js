@@ -1,108 +1,51 @@
-define(function () {
-  return function MappingSetupService(kbnIndex, es) {
-    var angular = require('angular');
-    var _ = require('lodash');
-    var mappingSetup = this;
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-    var json = {
-      _serialize: function (val) {
-        if (val != null) return angular.toJson(val);
-      },
-      _deserialize: function (val) {
-        if (val != null) return JSON.parse(val);
-      }
-    };
+import angular from 'angular';
+import _ from 'lodash';
 
-    /**
-     * Use to create the mappings, but that should only happen one at a time
-     */
-    var activeTypeCreations = {};
+// eslint-disable-next-line @elastic/kibana-custom/no-default-export
+export default function MappingSetupService() {
+  const mappingSetup = this;
 
-    /**
-     * Get the list of type's mapped in elasticsearch
-     * @return {[type]} [description]
-     */
-    var getKnownKibanaTypes = _.once(function () {
-      var indexName = kbnIndex;
-      return es.indices.getFieldMapping({
-        // only concerned with types in this kibana index
-        index: indexName,
-        // check all types
-        type: '*',
-        // limit the response to just the _source field for each index
-        field: '_source'
-      }).then(function (resp) {
-        return _.keys(resp[indexName].mappings);
-      });
-    });
-
-    mappingSetup.expandShorthand = function (sh) {
-      return _.mapValues(sh || {}, function (val, prop) {
-        // allow shortcuts for the field types, by just setting the value
-        // to the type name
-        if (typeof val === 'string') val = { type: val };
-
-        if (val.type === 'json') {
-          val.type = 'string';
-          val._serialize = json._serialize;
-          val._deserialize = json._deserialize;
-        }
-
-        return val;
-      });
-    };
-
-    mappingSetup.isDefined = function (type) {
-      return getKnownKibanaTypes()
-      .then(function (knownTypes) {
-        // if the type is in the knownTypes array already
-        return !!(~knownTypes.indexOf(type));
-      });
-    };
-
-    mappingSetup.setup = function (type, mapping) {
-      // if there is already a creation running for this index type
-      if (activeTypeCreations[type]) {
-        // return a promise that will reexecute the setup once the
-        // current is complete.
-        return activeTypeCreations[type].then(function () {
-          return mappingSetup.setup(type, mapping);
-        });
-      }
-
-      var prom = getKnownKibanaTypes()
-      .then(function (knownTypes) {
-        // if the type is in the knownTypes array already
-        if (~knownTypes.indexOf(type)) return false;
-
-        // we need to create the mapping
-        var body = {};
-        body[type] = {
-          properties: mapping
-        };
-
-        return es.indices.putMapping({
-          index: kbnIndex,
-          type: type,
-          body: body
-        }).then(function (resp) {
-          // add this type to the list of knownTypes
-          knownTypes.push(type);
-
-          // cast the response to "true", meaning
-          // the mapping exists
-          return true;
-        });
-      })
-      // wether this fails or not, remove it from the activeTypeCreations obj
-      // once complete
-      .finally(function () {
-        delete activeTypeCreations[type];
-      });
-
-      activeTypeCreations[type] = prom;
-      return prom;
-    };
+  const json = {
+    _serialize: function (val) {
+      if (val != null) return angular.toJson(val);
+    },
+    _deserialize: function (val) {
+      if (val != null) return JSON.parse(val);
+    }
   };
 
-});
+  mappingSetup.expandShorthand = function (sh) {
+    return _.mapValues(sh || {}, function (val) {
+      // allow shortcuts for the field types, by just setting the value
+      // to the type name
+      if (typeof val === 'string') val = { type: val };
+
+      if (val.type === 'json') {
+        val.type = 'text';
+        val._serialize = json._serialize;
+        val._deserialize = json._deserialize;
+      }
+
+      return val;
+    });
+  };
+}

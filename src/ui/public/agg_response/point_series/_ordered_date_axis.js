@@ -1,29 +1,47 @@
-define(function (require) {
-  return function PointSeriesOrderedDateAxis(timefilter) {
-    var moment = require('moment');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-    return function orderedDateAxis(vis, chart) {
-      var xAgg = chart.aspects.x.agg;
-      var buckets = xAgg.buckets;
-      var format = buckets.getScaledDateFormat();
+import moment from 'moment';
 
-      chart.xAxisFormatter = function (val) {
-        return moment(val).format(format);
-      };
+export function PointSeriesOrderedDateAxisProvider() {
 
-      chart.ordered = {
-        date: true,
-        interval: buckets.getInterval(),
-      };
+  return function orderedDateAxis(vis, chart) {
+    const xAgg = chart.aspects.x.agg;
+    const buckets = xAgg.buckets;
+    const format = buckets.getScaledDateFormat();
 
-      var axisOnTimeField = xAgg.fieldIsTimeField();
-      var bounds = buckets.getBounds();
-      if (bounds && axisOnTimeField) {
-        chart.ordered.min = bounds.min;
-        chart.ordered.max = bounds.max;
-      } else {
-        chart.ordered.endzones = false;
-      }
+    chart.xAxisFormatter = function (val) {
+      return moment(val).format(format);
     };
+
+    chart.ordered = {
+      date: true,
+      interval: buckets.getInterval(),
+    };
+
+    const axisOnTimeField = xAgg.fieldIsTimeField();
+    const bounds = buckets.getBounds();
+    if (bounds && axisOnTimeField) {
+      chart.ordered.min = bounds.min;
+      chart.ordered.max = bounds.max;
+    } else {
+      chart.ordered.endzones = false;
+    }
   };
-});
+}

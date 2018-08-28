@@ -1,7 +1,8 @@
-var _ = require('lodash');
+import _ from 'lodash';
 
-module.exports = {
+export default {
   'valueFormatter': _.identity,
+  'geohashGridAgg': { 'vis': { 'params': {} } },
   'geoJson': {
     'type': 'FeatureCollection',
     'features': [

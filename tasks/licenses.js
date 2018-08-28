@@ -1,75 +1,48 @@
-var _ = require('lodash');
-var npm = require('npm');
-var npmLicense = require('license-checker');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-module.exports = function (grunt) {
-  grunt.registerTask('licenses', 'Checks dependency licenses', function () {
+import { getInstalledPackages } from '../src/dev/npm';
+import {
+  assertLicensesValid,
+  LICENSE_WHITELIST,
+  LICENSE_OVERRIDES,
+} from '../src/dev/license_checker';
 
-    var config = this.options();
+export default function licenses(grunt) {
+  grunt.registerTask('licenses', 'Checks dependency licenses', async function () {
+    const done = this.async();
 
-    var done = this.async();
+    try {
+      const dev = Boolean(grunt.option('dev'));
 
-    var result = {};
-    var options = { start: process.cwd(), json: true };
-    var checkQueueLength = 2;
-
-    function processPackage(info, dependency) {
-      var pkgInfo = {};
-      pkgInfo.name = dependency;
-      pkgInfo.licenses = config.overrides[dependency] || (info && info.licenses);
-      pkgInfo.licenses = _.isArray(pkgInfo.licenses) ? pkgInfo.licenses : [pkgInfo.licenses];
-      pkgInfo.valid = (function () {
-        if (_.intersection(pkgInfo.licenses, config.licenses).length > 0) {
-          return true;
-        }
-        return false;
-      }());
-      return pkgInfo;
-    }
-
-    npmLicense.init(options, function (allDependencies) {
-      // Only check production NPM dependencies, not dev
-      npm.load({production: true}, function () {
-        npm.commands.list([], true, function (a, b, npmList) {
-
-          // Recurse npm --production --json ls output, create array of package@version
-          var getDependencies = function (dependencies, list) {
-            list = list || [];
-            _.each(dependencies, function (info, dependency) {
-              list.push(dependency + '@' + info.version);
-              if (info.dependencies) {
-                getDependencies(info.dependencies, list);
-              }
-            });
-            return list;
-          };
-
-          var productionDependencies = {};
-          _.each(getDependencies(npmList.dependencies), function (packageAndVersion) {
-            productionDependencies[packageAndVersion] = allDependencies[packageAndVersion];
-          });
-
-          var licenseStats = _.map(productionDependencies, processPackage);
-          var invalidLicenses = _.filter(licenseStats, function (pkg) { return !pkg.valid; });
-
-          if (!grunt.option('only-invalid')) {
-            grunt.log.debug(JSON.stringify(licenseStats, null, 2));
-          }
-
-
-          if (invalidLicenses.length) {
-            grunt.log.debug(JSON.stringify(invalidLicenses, null, 2));
-            grunt.fail.warn(
-              'Non-confirming licenses: ' + _.pluck(invalidLicenses, 'name').join(', '),
-              invalidLicenses.length
-            );
-          }
-
-          done();
-        });
+      assertLicensesValid({
+        packages: await getInstalledPackages({
+          directory: grunt.config.get('root'),
+          licenseOverrides: LICENSE_OVERRIDES,
+          dev
+        }),
+        validLicenses: LICENSE_WHITELIST
       });
-    });
-
-
+      done();
+    } catch (err) {
+      grunt.fail.fatal(err);
+      done(err);
+    }
   });
-};
+}

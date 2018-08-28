@@ -1,11 +1,12 @@
-var _ = require('lodash');
+import _ from 'lodash';
 
-module.exports = {
+export default {
   'label': '',
   'xAxisLabel': 'Top 5 unusual terms in @tags',
   'yAxisLabel': 'Count of documents',
   'series': [
     {
+      'label': 'Count',
       'values': [
         {
           'x': 'success',

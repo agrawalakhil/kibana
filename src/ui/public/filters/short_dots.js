@@ -1,30 +1,46 @@
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import _ from 'lodash';
+import { shortenDottedString } from '../../../core_plugins/kibana/common/utils/shorten_dotted_string';
+import { uiModules } from '../modules';
 // Shorts dot notated strings
-// eg: foo.bar.baz becomes f.b.baz
+// e.g., foo.bar.baz becomes f.b.baz
 // 'foo.bar.baz'.replace(/(.+?\.)/g,function(v) {return v[0]+'.';});
-define(function (require) {
-  var _ = require('lodash');
 
-  require('ui/modules')
-    .get('kibana')
-    .filter('shortDots', function (Private) {
-      return Private(shortDotsFilterProvider);
-    });
+uiModules
+  .get('kibana')
+  .filter('shortDots', function (Private) {
+    return Private(shortDotsFilterProvider);
+  });
 
-  function shortDotsFilterProvider(config, $rootScope) {
-    var filter;
+function shortDotsFilterProvider(config) {
+  let filter;
 
-    function updateFilter() {
-      filter = config.get('shortDots:enable') ? _.shortenDottedString : _.identity;
-    }
+  config.watch('shortDots:enable', updateFilter);
 
-    updateFilter();
-    $rootScope.$on('change:config.shortDots:enable', updateFilter);
-    $rootScope.$on('init:config', updateFilter);
+  return wrapper;
 
-    return function (str) {
-      return filter(str);
-    };
+  function updateFilter(enabled) {
+    filter = enabled ? shortenDottedString : _.identity;
   }
-
-  return shortDotsFilterProvider;
-});
+  function wrapper(str) {
+    return filter(str);
+  }
+}

@@ -1,16 +1,34 @@
-var d3 = require('d3');
-var angular = require('angular');
-var _ = require('lodash');
-var ngMock = require('ngMock');
-var expect = require('expect.js');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import d3 from 'd3';
+import _ from 'lodash';
+import ngMock from 'ng_mock';
+import expect from 'expect.js';
+import { VislibLibLayoutLayoutTypesProvider } from '../../../../lib/layout/layout_types';
 
 describe('Vislib Column Layout Test Suite', function () {
-  var layoutType;
-  var columnLayout;
-  var el;
-  var data = {
+  let layoutType;
+  let columnLayout;
+  let el;
+  const data = {
     hits: 621,
-    label: '',
     ordered: {
       date: true,
       interval: 30000,
@@ -19,6 +37,7 @@ describe('Vislib Column Layout Test Suite', function () {
     },
     series: [
       {
+        label: 'Count',
         values: [
           {
             x: 1408734060000,
@@ -69,9 +88,9 @@ describe('Vislib Column Layout Test Suite', function () {
 
   beforeEach(ngMock.module('kibana'));
   beforeEach(ngMock.inject(function (Private) {
-    layoutType = Private(require('ui/vislib/lib/layout/layout_types'));
+    layoutType = Private(VislibLibLayoutLayoutTypesProvider);
     el = d3.select('body').append('div').attr('class', 'visualization');
-    columnLayout = layoutType.histogram(el, data);
+    columnLayout = layoutType.point_series(el, data);
   }));
 
   afterEach(function () {
@@ -79,11 +98,11 @@ describe('Vislib Column Layout Test Suite', function () {
   });
 
   it('should return an array of objects', function () {
-    expect(_.isArray(columnLayout)).to.be(true);
+    expect(Array.isArray(columnLayout)).to.be(true);
     expect(_.isObject(columnLayout[0])).to.be(true);
   });
 
   it('should throw an error when the wrong number or no arguments provided', function () {
-    expect(function () { layoutType.histogram(el); }).to.throwError();
+    expect(function () { layoutType.point_series(el); }).to.throwError();
   });
 });

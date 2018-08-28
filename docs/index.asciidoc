@@ -1,20 +1,38 @@
 [[kibana-guide]]
 = Kibana User Guide
 
-:ref: http://www.elastic.co/guide/en/elasticsearch/reference/current/
-:shield: https://www.elastic.co/guide/en/shield/current
-:k4issue: https://github.com/elastic/kibana/issues/
-:k4pull: https://github.com/elastic/kibana/pull/
+:include-xpack:  true
+:lang:           en
+:kib-repo-dir:   {docdir}
+:blog-ref:       https://www.elastic.co/blog/
+:wikipedia:      https://en.wikipedia.org/wiki
+
+include::{asciidoc-dir}/../../shared/versions.asciidoc[]
+
+:docker-repo:    docker.elastic.co/kibana/kibana
+:docker-image:   docker.elastic.co/kibana/kibana:{version}
+:repo:           https://github.com/elastic/kibana/
+:issue:          {repo}issues/
+:pull:           {repo}pull/
+:commit:         {repo}commit/
+:blob:           {repo}blob/{branch}/
+:security-ref:   https://www.elastic.co/community/security/
+
+include::{asciidoc-dir}/../../shared/attributes.asciidoc[]
 
 include::introduction.asciidoc[]
 
 include::setup.asciidoc[]
 
+include::monitoring/monitoring-xkib.asciidoc[]
+
+include::security/securing-kibana.asciidoc[]
+
+include::settings/settings-xkb.asciidoc[]
+
+include::migration.asciidoc[]
+
 include::getting-started.asciidoc[]
-
-include::plugins.asciidoc[]
-
-include::access.asciidoc[]
 
 include::discover.asciidoc[]
 
@@ -22,8 +40,38 @@ include::visualize.asciidoc[]
 
 include::dashboard.asciidoc[]
 
-include::settings.asciidoc[]
+include::timelion.asciidoc[]
 
-include::production.asciidoc[]
+include::ml/index.asciidoc[]
 
-include::releasenotes.asciidoc[]
+include::apm/index.asciidoc[]
+
+include::graph/index.asciidoc[]
+
+include::dev-tools.asciidoc[]
+
+include::monitoring/index.asciidoc[]
+
+include::management.asciidoc[]
+
+include::security/index.asciidoc[]
+
+include::management/watcher-ui/index.asciidoc[]
+
+include::management/upgrade-assistant/index.asciidoc[]
+
+include::management/dashboard_only_mode/index.asciidoc[]
+
+include::reporting/index.asciidoc[]
+
+include::api.asciidoc[]
+
+include::plugins.asciidoc[]
+
+include::development.asciidoc[]
+
+include::limitations.asciidoc[]
+
+include::release-notes/highlights.asciidoc[]
+
+include::CHANGELOG.asciidoc[]

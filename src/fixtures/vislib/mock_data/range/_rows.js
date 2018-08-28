@@ -1,6 +1,6 @@
-var _ = require('lodash');
+import _ from 'lodash';
 
-module.exports = {
+export default {
   'rows': [
     {
       'label': 'Mozilla/5.0 (X11; Linux x86_64; rv:6.0a1) Gecko/20110421 Firefox/6.0a1: agent.raw',
@@ -8,6 +8,7 @@ module.exports = {
       'yAxisLabel': 'Count of documents',
       'series': [
         {
+          'label': 'Count',
           'values': [
             {
               'x': '0.0-1000.0',
@@ -29,6 +30,7 @@ module.exports = {
       'yAxisLabel': 'Count of documents',
       'series': [
         {
+          'label': 'Count',
           'values': [
             {
               'x': '0.0-1000.0',
@@ -50,6 +52,7 @@ module.exports = {
       'yAxisLabel': 'Count of documents',
       'series': [
         {
+          'label': 'Count',
           'values': [
             {
               'x': '0.0-1000.0',

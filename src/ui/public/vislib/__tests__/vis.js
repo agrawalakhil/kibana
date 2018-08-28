@@ -1,22 +1,42 @@
-var _ = require('lodash');
-var $ = require('jquery');
-var d3 = require('d3');
-var expect = require('expect.js');
-var ngMock = require('ngMock');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-var series = require('fixtures/vislib/mock_data/date_histogram/_series');
-var columns = require('fixtures/vislib/mock_data/date_histogram/_columns');
-var rows = require('fixtures/vislib/mock_data/date_histogram/_rows');
-var stackedSeries = require('fixtures/vislib/mock_data/date_histogram/_stacked_series');
+import _ from 'lodash';
+import expect from 'expect.js';
+import ngMock from 'ng_mock';
 
-var dataArray = [
+import series from 'fixtures/vislib/mock_data/date_histogram/_series';
+import columns from 'fixtures/vislib/mock_data/date_histogram/_columns';
+import rows from 'fixtures/vislib/mock_data/date_histogram/_rows';
+import stackedSeries from 'fixtures/vislib/mock_data/date_histogram/_stacked_series';
+import $ from 'jquery';
+import FixturesVislibVisFixtureProvider from 'fixtures/vislib/_vis_fixture';
+import '../../persisted_state';
+
+const dataArray = [
   series,
   columns,
   rows,
   stackedSeries
 ];
 
-var names = [
+const names = [
   'series',
   'columns',
   'rows',
@@ -26,27 +46,28 @@ var names = [
 
 dataArray.forEach(function (data, i) {
   describe('Vislib Vis Test Suite for ' + names[i] + ' Data', function () {
-    var beforeEvent = 'click';
-    var afterEvent = 'brush';
-    var vis;
-    var secondVis;
-    var numberOfCharts;
+    const beforeEvent = 'click';
+    const afterEvent = 'brush';
+    let vis;
+    let persistedState;
+    let secondVis;
+    let numberOfCharts;
 
     beforeEach(ngMock.module('kibana'));
-    beforeEach(ngMock.inject(function (Private) {
-      vis = Private(require('fixtures/vislib/_vis_fixture'))();
-      secondVis = Private(require('fixtures/vislib/_vis_fixture'))();
+    beforeEach(ngMock.inject(function (Private, $injector) {
+      vis = Private(FixturesVislibVisFixtureProvider)();
+      persistedState = new ($injector.get('PersistedState'))();
+      secondVis = Private(FixturesVislibVisFixtureProvider)();
     }));
 
     afterEach(function () {
-      $(vis.el).remove();
-      $(secondVis.el).remove();
-      vis = null;
+      vis.destroy();
+      secondVis.destroy();
     });
 
     describe('render Method', function () {
       beforeEach(function () {
-        vis.render(data);
+        vis.render(data, persistedState);
         numberOfCharts = vis.handler.charts.length;
       });
 
@@ -62,31 +83,24 @@ dataArray.forEach(function (data, i) {
         expect($('.chart').length).to.be(numberOfCharts);
       });
 
-    });
-
-    describe('resize Method', function () {
-      beforeEach(function () {
-        vis.render(data);
-        vis.resize();
-        numberOfCharts = vis.handler.charts.length;
-      });
-
-      it('should throw an error', function () {
+      it('should throw an error if no data is provided', function () {
         expect(function () {
-          vis.data = undefined;
-          vis.render();
+          vis.render(null, persistedState);
         }).to.throwError();
       });
 
-      it('should resize the visualization', function () {
-        expect(vis.handler.charts.length).to.be(numberOfCharts);
+    });
+
+    describe('getLegendColors method', () => {
+      it ('should return null if no colors are defined', () => {
+        expect(vis.getLegendColors()).to.equal(null);
       });
     });
 
     describe('destroy Method', function () {
       beforeEach(function () {
-        vis.render(data);
-        secondVis.render(data);
+        vis.render(data, persistedState);
+        secondVis.render(data, persistedState);
         secondVis.destroy();
       });
 
@@ -101,7 +115,7 @@ dataArray.forEach(function (data, i) {
 
     describe('set Method', function () {
       beforeEach(function () {
-        vis.render(data);
+        vis.render(data, persistedState);
         vis.set('addLegend', false);
         vis.set('offset', 'wiggle');
       });
@@ -114,29 +128,23 @@ dataArray.forEach(function (data, i) {
 
     describe('get Method', function () {
       beforeEach(function () {
-        vis.render(data);
+        vis.render(data, persistedState);
       });
 
-      it('should get attribue values', function () {
+      it('should get attribute values', function () {
         expect(vis.get('addLegend')).to.be(true);
         expect(vis.get('addTooltip')).to.be(true);
-        expect(vis.get('type')).to.be('histogram');
+        expect(vis.get('type')).to.be('point_series');
       });
     });
 
     describe('on Method', function () {
-      var events = [
-        beforeEvent,
-        afterEvent
-      ];
-      var listeners;
-      var listener1;
-      var listener2;
+      let listeners;
 
       beforeEach(function () {
         listeners = [
-          listener1 = function () {},
-          listener2 = function () {}
+          function () {},
+          function () {}
         ];
 
         // Add event and listeners to chart
@@ -145,7 +153,7 @@ dataArray.forEach(function (data, i) {
         });
 
         // Render chart
-        vis.render(data);
+        vis.render(data, persistedState);
 
         // Add event after charts have rendered
         listeners.forEach(function (listener) {
@@ -169,9 +177,9 @@ dataArray.forEach(function (data, i) {
       });
 
       it('should cause a listener for each event to be attached to each chart', function () {
-        var charts = vis.handler.charts;
+        const charts = vis.handler.charts;
 
-        charts.forEach(function (chart, i) {
+        charts.forEach(function (chart) {
           expect(chart.events.listenerCount(beforeEvent)).to.be.above(0);
           expect(chart.events.listenerCount(afterEvent)).to.be.above(0);
         });
@@ -179,9 +187,9 @@ dataArray.forEach(function (data, i) {
     });
 
     describe('off Method', function () {
-      var listeners;
-      var listener1;
-      var listener2;
+      let listeners;
+      let listener1;
+      let listener2;
 
       beforeEach(function () {
         listeners = [];
@@ -199,7 +207,7 @@ dataArray.forEach(function (data, i) {
         vis.off(beforeEvent, listener1);
 
         // Render chart
-        vis.render(data);
+        vis.render(data, persistedState);
 
         // Add event after charts have rendered
         listeners.forEach(function (listener) {
@@ -216,7 +224,7 @@ dataArray.forEach(function (data, i) {
       });
 
       it('should remove a listener', function () {
-        var charts = vis.handler.charts;
+        const charts = vis.handler.charts;
 
         expect(vis.listeners(beforeEvent)).to.not.contain(listener1);
         expect(vis.listeners(beforeEvent)).to.contain(listener2);
@@ -232,7 +240,7 @@ dataArray.forEach(function (data, i) {
       });
 
       it('should remove the event and all listeners when only event passed an argument', function () {
-        var charts = vis.handler.charts;
+        const charts = vis.handler.charts;
         vis.off(afterEvent);
 
         // should remove 'brush' event
@@ -247,7 +255,7 @@ dataArray.forEach(function (data, i) {
       });
 
       it('should remove the event from the chart when the last listener is removed', function () {
-        var charts = vis.handler.charts;
+        const charts = vis.handler.charts;
         vis.off(afterEvent, listener2);
 
         expect(vis.listenerCount(afterEvent)).to.be(0);

@@ -1,5 +1,6 @@
-var _ = require('lodash');
-module.exports = {
+import _ from 'lodash';
+
+export default {
   'columns': [
       {
         'title': 'Top 2 geo.dest: CN',

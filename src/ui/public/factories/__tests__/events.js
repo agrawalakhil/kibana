@@ -1,30 +1,46 @@
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-var angular = require('angular');
-var _ = require('lodash');
-var sinon = require('auto-release-sinon');
-var expect = require('expect.js');
-var ngMock = require('ngMock');
-require('ui/private');
+
+import _ from 'lodash';
+import sinon from 'sinon';
+import expect from 'expect.js';
+import ngMock from 'ng_mock';
+import '../../private';
+import { EventsProvider } from '../../events';
+import { createLegacyClass } from '../../utils/legacy_class';
 
 describe('Events', function () {
-  require('testUtils/noDigestPromises').activateForSuite();
+  require('test_utils/no_digest_promises').activateForSuite();
 
-  var $rootScope;
-  var Events;
-  var Notifier;
-  var Promise;
+  let Events;
+  let Promise;
 
   beforeEach(ngMock.module('kibana'));
   beforeEach(ngMock.inject(function ($injector, Private) {
-    $rootScope = $injector.get('$rootScope');
-    Notifier = $injector.get('Notifier');
     Promise = $injector.get('Promise');
-    Events = Private(require('ui/events'));
+    Events = Private(EventsProvider);
   }));
 
   it('should handle on events', function () {
-    var obj = new Events();
-    var prom = obj.on('test', function (message) {
+    const obj = new Events();
+    const prom = obj.on('test', function (message) {
       expect(message).to.equal('Hello World');
     });
 
@@ -34,13 +50,13 @@ describe('Events', function () {
   });
 
   it('should work with inherited objects', function () {
-    _.class(MyEventedObject).inherits(Events);
+    createLegacyClass(MyEventedObject).inherits(Events);
     function MyEventedObject() {
       MyEventedObject.Super.call(this);
     }
-    var obj = new MyEventedObject();
+    const obj = new MyEventedObject();
 
-    var prom = obj.on('test', function (message) {
+    const prom = obj.on('test', function (message) {
       expect(message).to.equal('Hello World');
     });
 
@@ -50,7 +66,7 @@ describe('Events', function () {
   });
 
   it('should clear events when off is called', function () {
-    var obj = new Events();
+    const obj = new Events();
     obj.on('test', _.noop);
     expect(obj._listeners).to.have.property('test');
     expect(obj._listeners.test).to.have.length(1);
@@ -59,60 +75,60 @@ describe('Events', function () {
   });
 
   it('should clear a specific handler when off is called for an event', function () {
-    var obj = new Events();
-    var handler1 = sinon.stub();
-    var handler2 = sinon.stub();
+    const obj = new Events();
+    const handler1 = sinon.stub();
+    const handler2 = sinon.stub();
     obj.on('test', handler1);
     obj.on('test', handler2);
     expect(obj._listeners).to.have.property('test');
     obj.off('test', handler1);
 
     return obj.emit('test', 'Hello World')
-    .then(function () {
-      sinon.assert.calledOnce(handler2);
-      sinon.assert.notCalled(handler1);
-    });
+      .then(function () {
+        sinon.assert.calledOnce(handler2);
+        sinon.assert.notCalled(handler1);
+      });
   });
 
   it('should clear a all handlers when off is called for an event', function () {
-    var obj = new Events();
-    var handler1 = sinon.stub();
+    const obj = new Events();
+    const handler1 = sinon.stub();
     obj.on('test', handler1);
     expect(obj._listeners).to.have.property('test');
     obj.off('test');
     expect(obj._listeners).to.not.have.property('test');
 
     return obj.emit('test', 'Hello World')
-    .then(function () {
-      sinon.assert.notCalled(handler1);
-    });
+      .then(function () {
+        sinon.assert.notCalled(handler1);
+      });
   });
 
-  it('should handle mulitple identical emits in the same tick', function () {
-    var obj = new Events();
-    var handler1 = sinon.stub();
+  it('should handle multiple identical emits in the same tick', function () {
+    const obj = new Events();
+    const handler1 = sinon.stub();
 
     obj.on('test', handler1);
-    var emits = [
+    const emits = [
       obj.emit('test', 'one'),
       obj.emit('test', 'two'),
       obj.emit('test', 'three')
     ];
 
     return Promise
-    .all(emits)
-    .then(function () {
-      expect(handler1.callCount).to.be(emits.length);
-      expect(handler1.getCall(0).calledWith('one')).to.be(true);
-      expect(handler1.getCall(1).calledWith('two')).to.be(true);
-      expect(handler1.getCall(2).calledWith('three')).to.be(true);
-    });
+      .all(emits)
+      .then(function () {
+        expect(handler1.callCount).to.be(emits.length);
+        expect(handler1.getCall(0).calledWith('one')).to.be(true);
+        expect(handler1.getCall(1).calledWith('two')).to.be(true);
+        expect(handler1.getCall(2).calledWith('three')).to.be(true);
+      });
   });
 
   it('should handle emits from the handler', function () {
-    var obj = new Events();
-    var secondEmit = Promise.defer();
-    var handler1 = sinon.spy(function () {
+    const obj = new Events();
+    const secondEmit = Promise.defer();
+    const handler1 = sinon.spy(function () {
       if (handler1.calledTwice) {
         return;
       }
@@ -122,22 +138,22 @@ describe('Events', function () {
     obj.on('test', handler1);
 
     return Promise
-    .all([
-      obj.emit('test'),
-      secondEmit.promise
-    ])
-    .then(function () {
-      expect(handler1.callCount).to.be(2);
-    });
+      .all([
+        obj.emit('test'),
+        secondEmit.promise
+      ])
+      .then(function () {
+        expect(handler1.callCount).to.be(2);
+      });
   });
 
   it('should only emit to handlers registered before emit is called', function () {
-    var obj = new Events();
-    var handler1 = sinon.stub();
-    var handler2 = sinon.stub();
+    const obj = new Events();
+    const handler1 = sinon.stub();
+    const handler2 = sinon.stub();
 
     obj.on('test', handler1);
-    var emits = [
+    const emits = [
       obj.emit('test', 'one'),
       obj.emit('test', 'two'),
       obj.emit('test', 'three')
@@ -149,24 +165,24 @@ describe('Events', function () {
 
       obj.on('test', handler2);
 
-      var emits2 = [
+      const emits2 = [
         obj.emit('test', 'four'),
         obj.emit('test', 'five'),
         obj.emit('test', 'six')
       ];
 
       return Promise.all(emits2)
-      .then(function () {
-        expect(handler1.callCount).to.be(emits.length + emits2.length);
-        expect(handler2.callCount).to.be(emits2.length);
-      });
+        .then(function () {
+          expect(handler1.callCount).to.be(emits.length + emits2.length);
+          expect(handler2.callCount).to.be(emits2.length);
+        });
     });
   });
 
   it('should pass multiple arguments from the emitter', function () {
-    var obj = new Events();
-    var handler = sinon.stub();
-    var payload = [
+    const obj = new Events();
+    const handler = sinon.stub();
+    const payload = [
       'one',
       { hello: 'tests' },
       null
@@ -175,54 +191,54 @@ describe('Events', function () {
     obj.on('test', handler);
 
     return obj.emit('test', payload[0], payload[1], payload[2])
-    .then(function () {
-      expect(handler.callCount).to.be(1);
-      expect(handler.calledWithExactly(payload[0], payload[1], payload[2])).to.be(true);
-    });
+      .then(function () {
+        expect(handler.callCount).to.be(1);
+        expect(handler.calledWithExactly(payload[0], payload[1], payload[2])).to.be(true);
+      });
   });
 
   it('should preserve the scope of the handler', function () {
-    var obj = new Events();
-    var expected = 'some value';
-    var testValue;
+    const obj = new Events();
+    const expected = 'some value';
+    let testValue;
 
-    function handler(arg1, arg2) {
+    function handler() {
       testValue = this.getVal();
     }
     handler.getVal = _.constant(expected);
 
     obj.on('test', handler);
     return obj.emit('test')
-    .then(function () {
-      expect(testValue).to.equal(expected);
-    });
+      .then(function () {
+        expect(testValue).to.equal(expected);
+      });
   });
 
   it('should always emit in the same order', function () {
-    var handler = sinon.stub();
+    const handler = sinon.stub();
 
-    var obj = new Events();
+    const obj = new Events();
     obj.on('block', _.partial(handler, 'block'));
     obj.on('last', _.partial(handler, 'last'));
 
     return Promise
-    .all([
-      obj.emit('block'),
-      obj.emit('block'),
-      obj.emit('block'),
-      obj.emit('block'),
-      obj.emit('block'),
-      obj.emit('block'),
-      obj.emit('block'),
-      obj.emit('block'),
-      obj.emit('block'),
-      obj.emit('last')
-    ])
-    .then(function () {
-      expect(handler.callCount).to.be(10);
-      handler.args.forEach(function (args, i) {
-        expect(args[0]).to.be(i < 9 ? 'block' : 'last');
+      .all([
+        obj.emit('block'),
+        obj.emit('block'),
+        obj.emit('block'),
+        obj.emit('block'),
+        obj.emit('block'),
+        obj.emit('block'),
+        obj.emit('block'),
+        obj.emit('block'),
+        obj.emit('block'),
+        obj.emit('last')
+      ])
+      .then(function () {
+        expect(handler.callCount).to.be(10);
+        handler.args.forEach(function (args, i) {
+          expect(args[0]).to.be(i < 9 ? 'block' : 'last');
+        });
       });
-    });
   });
 });

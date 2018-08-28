@@ -1,6 +1,6 @@
-var _ = require('lodash');
+import _ from 'lodash';
 
-module.exports = {
+export default {
   'label': '',
   'xAxisLabel': 'machine.ram',
   'ordered': {
@@ -9,6 +9,7 @@ module.exports = {
   'yAxisLabel': 'Count of documents',
   'series': [
     {
+      'label': 'Count',
       'values': [
         {
           'x': 3221225400,

@@ -1,67 +1,187 @@
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-var moment = require('moment');
+import moment from 'moment';
+import expect from 'expect.js';
+import ngMock from 'ng_mock';
+import { IndexPatternsIntervalsProvider } from '../_intervals';
+
 describe('Index Patterns', function () {
   describe('interval.toIndexList()', function () {
-    var expect = require('expect.js');
-    var ngMock = require('ngMock');
 
-    var intervals;
+    let intervals;
     beforeEach(ngMock.module('kibana'));
     beforeEach(ngMock.inject(function (Private) {
-      intervals = Private(require('ui/index_patterns/_intervals'));
+      intervals = Private(IndexPatternsIntervalsProvider);
     }));
 
     it('should return correct indices for hourly [logstash-]YYYY.MM.DD.HH', function () {
-      var start = moment.utc('2014-01-01T07:00:00Z');
-      var end = moment.utc('2014-01-01T08:30:00Z');
-      var interval = { name: 'hours', startOf: 'hour', display: 'Hourly' };
-      var list = intervals.toIndexList('[logstash-]YYYY.MM.DD.HH', interval, start, end);
-      expect(list).to.contain('logstash-2014.01.01.07');
-      expect(list).to.contain('logstash-2014.01.01.08');
+      const start = moment.utc('2014-01-01T07:00:00Z');
+      const end = moment.utc('2014-01-01T08:30:00Z');
+      const interval = { name: 'hours', startOf: 'hour', display: 'Hourly' };
+      const list = intervals.toIndexList('[logstash-]YYYY.MM.DD.HH', interval, start, end);
+      expect(list).to.eql([
+        {
+          index: 'logstash-2014.01.01.07',
+          min: moment.utc('2014-01-01T07:00:00').valueOf(),
+          max: moment.utc('2014-01-01T07:59:59.999').valueOf(),
+        },
+        {
+          index: 'logstash-2014.01.01.08',
+          min: moment.utc('2014-01-01T08:00:00').valueOf(),
+          max: moment.utc('2014-01-01T08:59:59.999').valueOf(),
+        }
+      ]);
     });
 
     it('should return correct indices for daily [logstash-]YYYY.MM.DD', function () {
-      var start = moment(1418244231248);
-      var end = moment(1418849261281);
-      var interval = { name: 'days', startOf: 'day', display: 'Daily' };
-      var list = intervals.toIndexList('[logstash-]YYYY.MM.DD', interval, start, end);
-      expect(list).to.contain('logstash-2014.12.10');
-      expect(list).to.contain('logstash-2014.12.11');
-      expect(list).to.contain('logstash-2014.12.12');
-      expect(list).to.contain('logstash-2014.12.13');
-      expect(list).to.contain('logstash-2014.12.14');
-      expect(list).to.contain('logstash-2014.12.15');
-      expect(list).to.contain('logstash-2014.12.16');
-      expect(list).to.contain('logstash-2014.12.17');
-    });
-
-    it('should return correct indices for weekly [logstash-]GGGG.WW', function () {
-      var start = moment.utc(1418244231248);
-      var end = moment.utc(1418849261281);
-      var interval = { name: 'weeks', startOf: 'isoWeek', display: 'Weekly' };
-      var list = intervals.toIndexList('[logstash-]GGGG.WW', interval, start, end);
-      expect(list).to.contain('logstash-2014.50');
-      expect(list).to.contain('logstash-2014.51');
+      const start = moment(1418244231248);
+      const end = moment(1418849261281);
+      const interval = { name: 'days', startOf: 'day', display: 'Daily' };
+      const list = intervals.toIndexList('[logstash-]YYYY.MM.DD', interval, start, end);
+      expect(list).to.eql([
+        {
+          index: 'logstash-2014.12.10',
+          min: moment.utc('2014-12-10T00:00:00').valueOf(),
+          max: moment.utc('2014-12-10T23:59:59.999').valueOf(),
+        },
+        {
+          index: 'logstash-2014.12.11',
+          min: moment.utc('2014-12-11T00:00:00').valueOf(),
+          max: moment.utc('2014-12-11T23:59:59.999').valueOf(),
+        },
+        {
+          index: 'logstash-2014.12.12',
+          min: moment.utc('2014-12-12T00:00:00').valueOf(),
+          max: moment.utc('2014-12-12T23:59:59.999').valueOf(),
+        },
+        {
+          index: 'logstash-2014.12.13',
+          min: moment.utc('2014-12-13T00:00:00').valueOf(),
+          max: moment.utc('2014-12-13T23:59:59.999').valueOf(),
+        },
+        {
+          index: 'logstash-2014.12.14',
+          min: moment.utc('2014-12-14T00:00:00').valueOf(),
+          max: moment.utc('2014-12-14T23:59:59.999').valueOf(),
+        },
+        {
+          index: 'logstash-2014.12.15',
+          min: moment.utc('2014-12-15T00:00:00').valueOf(),
+          max: moment.utc('2014-12-15T23:59:59.999').valueOf(),
+        },
+        {
+          index: 'logstash-2014.12.16',
+          min: moment.utc('2014-12-16T00:00:00').valueOf(),
+          max: moment.utc('2014-12-16T23:59:59.999').valueOf(),
+        },
+        {
+          index: 'logstash-2014.12.17',
+          min: moment.utc('2014-12-17T00:00:00').valueOf(),
+          max: moment.utc('2014-12-17T23:59:59.999').valueOf(),
+        },
+      ]);
     });
 
     it('should return correct indices for monthly [logstash-]YYYY.MM', function () {
-      var start = moment.utc('2014-12-01');
-      var end = moment.utc('2015-02-01');
-      var interval = { name: 'months', startOf: 'month', display: 'Monthly' };
-      var list = intervals.toIndexList('[logstash-]YYYY.MM', interval, start, end);
-      expect(list).to.contain('logstash-2014.12');
-      expect(list).to.contain('logstash-2015.01');
-      expect(list).to.contain('logstash-2015.02');
+      const start = moment.utc('2014-12-01');
+      const end = moment.utc('2015-02-01');
+      const interval = { name: 'months', startOf: 'month', display: 'Monthly' };
+      const list = intervals.toIndexList('[logstash-]YYYY.MM', interval, start, end);
+      expect(list).to.eql([
+        {
+          index: 'logstash-2014.12',
+          min: moment.utc(0).year(2014).month(11).valueOf(),
+          max: moment.utc(0).year(2015).month(0).subtract(1, 'ms').valueOf(),
+        },
+        {
+          index: 'logstash-2015.01',
+          min: moment.utc(0).year(2015).month(0).valueOf(),
+          max: moment.utc(0).year(2015).month(1).subtract(1, 'ms').valueOf(),
+        },
+        {
+          index: 'logstash-2015.02',
+          min: moment.utc(0).year(2015).month(1).valueOf(),
+          max: moment.utc(0).year(2015).month(2).subtract(1, 'ms').valueOf(),
+        },
+      ]);
     });
 
     it('should return correct indices for yearly [logstash-]YYYY', function () {
-      var start = moment.utc('2014-12-01');
-      var end = moment.utc('2015-02-01');
-      var interval = { name: 'years', startOf: 'year', display: 'Yearly' };
-      var list = intervals.toIndexList('[logstash-]YYYY', interval, start, end);
-      expect(list).to.contain('logstash-2014');
-      expect(list).to.contain('logstash-2015');
+      const start = moment.utc('2014-12-01');
+      const end = moment.utc('2015-02-01');
+      const interval = { name: 'years', startOf: 'year', display: 'Yearly' };
+      const list = intervals.toIndexList('[logstash-]YYYY', interval, start, end);
+      expect(list).to.eql([
+        {
+          index: 'logstash-2014',
+          min: moment.utc(0).year(2014).valueOf(),
+          max: moment.utc(0).year(2015).subtract(1, 'ms').valueOf(),
+        },
+        {
+          index: 'logstash-2015',
+          min: moment.utc(0).year(2015).valueOf(),
+          max: moment.utc(0).year(2016).subtract(1, 'ms').valueOf(),
+        },
+      ]);
     });
 
+    describe('with sortDirection=asc', function () {
+      it('returns values in ascending order', function () {
+        const start = moment.utc('2014-12-01');
+        const end = moment.utc('2015-02-01');
+        const interval = { name: 'years', startOf: 'year', display: 'Yearly' };
+        const list = intervals.toIndexList('[logstash-]YYYY', interval, start, end, 'asc');
+        expect(list).to.eql([
+          {
+            index: 'logstash-2014',
+            min: moment.utc(0).year(2014).valueOf(),
+            max: moment.utc(0).year(2015).subtract(1, 'ms').valueOf(),
+          },
+          {
+            index: 'logstash-2015',
+            min: moment.utc(0).year(2015).valueOf(),
+            max: moment.utc(0).year(2016).subtract(1, 'ms').valueOf(),
+          },
+        ]);
+      });
+    });
+
+    describe('with sortDirection=desc', function () {
+      it('returns values in descending order', function () {
+        const start = moment.utc('2014-12-01');
+        const end = moment.utc('2015-02-01');
+        const interval = { name: 'years', startOf: 'year', display: 'Yearly' };
+        const list = intervals.toIndexList('[logstash-]YYYY', interval, start, end, 'desc');
+        expect(list).to.eql([
+          {
+            index: 'logstash-2015',
+            min: moment.utc(0).year(2015).valueOf(),
+            max: moment.utc(0).year(2016).subtract(1, 'ms').valueOf(),
+          },
+          {
+            index: 'logstash-2014',
+            min: moment.utc(0).year(2014).valueOf(),
+            max: moment.utc(0).year(2015).subtract(1, 'ms').valueOf(),
+          },
+        ]);
+      });
+    });
   });
 });

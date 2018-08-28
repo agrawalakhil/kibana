@@ -9,21 +9,27 @@ kbn-agg-table-group {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+}
 
-  &-paginated {
+  .agg-table-paginated {
     flex: 1 1 auto;
     overflow: auto;
 
-    tr:hover td {
-      background-color: @table-row-hover-bg;
+    th {
+      text-align: left;
+      font-weight: bold;
     }
 
-    .cell-hover:hover {
-      background-color: @table-cell-hover-hover-bg;
+    tr:hover td {
+      background-color: @table-row-hover-bg;
+
+      .table-cell-filter {
+        background-color: @table-row-hover-bg;
+      }
     }
   }
 
-  &-controls {
+  .agg-table-controls {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -33,6 +39,18 @@ kbn-agg-table-group {
       flex: 1 0 auto;
       margin: 0;
       padding: 0;
+    }
+  }
+
+// SASSTODO: Make sure these colors convert to theme variables
+.tab-dashboard.theme-dark {
+  .agg-table-paginated {
+    tr:hover td {
+      background-color: lighten(@gray6, 4%);
+
+      .table-cell-filter {
+        background-color: lighten(@gray6, 4%);
+      }
     }
   }
 }

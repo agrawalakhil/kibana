@@ -1,10 +1,10 @@
 @import "~ui/styles/variables";
-@import (reference) "~bootstrap/less/mixins";
+@import (reference) "~ui/styles/bootstrap/mixins";
 
-.flex-parent(@grow: 1, @shrink: 1, @basis: auto) {
+.flex-parent(@grow: 1, @shrink: 1, @basis: auto, @direction: column) {
   flex: @grow @shrink @basis;
   display: flex;
-  flex-direction: column;
+  flex-direction: @direction;
 
   > * {
     flex-shrink: 0;

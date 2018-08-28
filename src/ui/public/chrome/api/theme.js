@@ -1,38 +1,38 @@
-var _ = require('lodash');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-module.exports = function (chrome, internals) {
+import _ from 'lodash';
+
+// eslint-disable-next-line @elastic/kibana-custom/no-default-export
+export default function (chrome, internals) {
   /**
    * ui/chrome Theme API
-   *
-   *   Nav Background
-   *     applies to the entire nav bar and is specified as a css string.
-   *     eg. 'red' or 'url(..) no-repeat left center'
    *
    *   Logo
    *     Set the background for the logo and small logo in the navbar.
    *     When the app is in the "small" category, a modified version of the
    *     logo is displayed that is 45px wide.
-   *     eg. 'url(/plugins/app/logo.png) center no-repeat'
+   *     e.g., 'url(/plugins/app/logo.png) center no-repeat'
    *
    *   Brand
    *     Similar to a logo, but is just text with styles to make it stick out.
    */
-
-  /**
-   * @param {string} background - css background definition
-   * @return {chrome}
-   */
-  chrome.setNavBackground = function (cssBackground) {
-    internals.navBackground = cssBackground;
-    return chrome;
-  };
-
-  /**
-   * @return {string} - css background
-   */
-  chrome.getNavBackground = function () {
-    return internals.navBackground;
-  };
 
   /**
    * @param {string|object} item - brand key to set, or object to apply
@@ -66,7 +66,7 @@ module.exports = function (chrome, internals) {
    * @return {chrome}
    */
   chrome.addApplicationClass = function (val) {
-    var classes = internals.applicationClasses || [];
+    let classes = internals.applicationClasses || [];
     classes.push(val);
     classes = _.uniq(classes);
 
@@ -81,8 +81,8 @@ module.exports = function (chrome, internals) {
    * @return {chrome}
    */
   chrome.removeApplicationClass = function (val) {
-    var classesToRemove = [].concat(val || []);
-    var classes = internals.applicationClasses || [];
+    const classesToRemove = [].concat(val || []);
+    const classes = internals.applicationClasses || [];
     _.pull(classes, ...classesToRemove);
 
     internals.applicationClasses = classes;
@@ -97,4 +97,4 @@ module.exports = function (chrome, internals) {
     return internals.applicationClasses.join(' ');
   };
 
-};
+}

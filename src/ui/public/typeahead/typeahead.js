@@ -1,241 +1,148 @@
-define(function (require) {
-  var _ = require('lodash');
-  var typeahead = require('ui/modules').get('kibana/typeahead');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  require('ui/typeahead/typeahead.less');
-  require('ui/typeahead/_input');
-  require('ui/typeahead/_items');
+import template from './typeahead.html';
+import { uiModules } from '../modules';
+import { comboBoxKeyCodes } from '@elastic/eui';
+import '../directives/scroll_bottom';
+import './typeahead.less';
+import './typeahead_input';
+import './typeahead_item';
 
-  typeahead.directive('kbnTypeahead', function () {
-    var keyMap = {
-      ESC: 27,
-      UP: 38,
-      DOWN: 40,
-      TAB: 9,
-      ENTER: 13
-    };
+const { UP, DOWN, ENTER, TAB, ESCAPE } = comboBoxKeyCodes;
+const typeahead = uiModules.get('kibana/typeahead');
 
-    return {
-      restrict: 'A',
-      scope: {
-        historyKey: '@kbnTypeahead'
-      },
-      controllerAs: 'typeahead',
+typeahead.directive('kbnTypeahead', function () {
+  return {
+    template,
+    transclude: true,
+    restrict: 'E',
+    scope: {
+      items: '=',
+      itemTemplate: '=',
+      onSelect: '&',
+      onFocusChange: '&'
+    },
+    bindToController: true,
+    controllerAs: 'typeahead',
+    controller: function ($scope, $element) {
+      this.isHidden = true;
+      this.selectedIndex = null;
+      this.elementID = $element.attr('id');
 
-      controller: function ($scope, $element, $timeout, PersistedLog, config) {
-        var self = this;
-        self.form = $element.closest('form');
-        self.query = '';
-        self.hidden = true;
-        self.focused = false;
-        self.mousedOver = false;
+      this.submit = () => {
+        const item = this.items[this.selectedIndex];
+        this.onSelect({ item });
+        this.selectedIndex = null;
+      };
 
-        // instantiate history and add items to the scope
-        self.history = new PersistedLog('typeahead:' + $scope.historyKey, {
-          maxLength: config.get('history:limit'),
-          filterDuplicates: true
-        });
-
-        $scope.items = self.history.get();
-        $scope.filteredItems = [];
-
-        self.setInputModel = function (model) {
-          $scope.inputModel = model;
-
-          // watch for changes to the query parameter, delegate to typeaheadCtrl
-          $scope.$watch('inputModel.$viewValue', self.filterItemsByQuery);
-        };
-
-        self.setHidden = function (hidden) {
-          self.hidden = !!(hidden);
-        };
-
-        self.setFocused = function (focused) {
-          self.focused = !!(focused);
-        };
-
-        self.setMouseover = function (mousedOver) {
-          self.mousedOver = !!(mousedOver);
-        };
-
-        // activation methods
-        self.activateItem = function (item) {
-          self.active = item;
-        };
-
-        self.getActiveIndex = function () {
-          if (!self.active) {
-            return;
-          }
-
-          return $scope.filteredItems.indexOf(self.active);
-        };
-
-        self.getItems = function () {
-          return $scope.filteredItems;
-        };
-
-        self.activateNext = function () {
-          var index = self.getActiveIndex();
-          if (index == null) {
-            index = 0;
-          } else if (index < $scope.filteredItems.length - 1) {
-            ++index;
-          }
-
-          self.activateItem($scope.filteredItems[index]);
-        };
-
-        self.activatePrev = function () {
-          var index = self.getActiveIndex();
-
-          if (index > 0 && index != null) {
-            --index;
-          } else if (index === 0) {
-            self.active = false;
-            return;
-          }
-
-          self.activateItem($scope.filteredItems[index]);
-        };
-
-        self.isActive = function (item) {
-          return item === self.active;
-        };
-
-        // selection methods
-        self.selectItem = function (item, ev) {
-          self.hidden = true;
-          self.active = false;
-          $scope.inputModel.$setViewValue(item);
-          $scope.inputModel.$render();
-          self.persistEntry();
-
-          if (ev && ev.type === 'click') {
-            $timeout(function () {
-              self.submitForm();
-            });
-          }
-        };
-
-        self.submitForm = function () {
-          if (self.form.length) {
-            self.form.submit();
-          }
-        };
-
-        self.persistEntry = function () {
-          if ($scope.inputModel.$viewValue.length) {
-            // push selection into the history
-            $scope.items = self.history.add($scope.inputModel.$viewValue);
-          }
-        };
-
-        self.selectActive = function () {
-          if (self.active) {
-            self.selectItem(self.active);
-          }
-        };
-
-        self.keypressHandler = function (ev) {
-          var keyCode = ev.which || ev.keyCode;
-
-          if (self.focused) {
-            self.hidden = false;
-          }
-
-          // hide on escape
-          if (_.contains([keyMap.ESC], keyCode)) {
-            self.hidden = true;
-            self.active = false;
-          }
-
-          // change selection with arrow up/down
-          // on down key, attempt to load all items if none are loaded
-          if (_.contains([keyMap.DOWN], keyCode) && $scope.filteredItems.length === 0) {
-            $scope.filteredItems = $scope.items;
-            $scope.$digest();
-          } else if (_.contains([keyMap.UP, keyMap.DOWN], keyCode)) {
-            if (self.isVisible() && $scope.filteredItems.length) {
-              ev.preventDefault();
-
-              if (keyCode === keyMap.DOWN) {
-                self.activateNext();
-              } else {
-                self.activatePrev();
-              }
-            }
-          }
-
-          // persist selection on enter, when not selecting from the list
-          if (_.contains([keyMap.ENTER], keyCode)) {
-            if (!self.active) {
-              self.persistEntry();
-            }
-          }
-
-          // select on enter or tab
-          if (_.contains([keyMap.ENTER, keyMap.TAB], keyCode)) {
-            self.selectActive();
-            self.hidden = true;
-          }
-        };
-
-        self.filterItemsByQuery = function (query) {
-          // cache query so we can call it again if needed
-          if (query) {
-            self.query = query;
-          }
-
-          // if the query is empty, clear the list items
-          if (!self.query.length) {
-            $scope.filteredItems = [];
-            return;
-          }
-
-          // update the filteredItems using the query
-          var beginningMatches = $scope.items.filter(function (item) {
-            return item.indexOf(query) === 0;
-          });
-
-          var otherMatches = $scope.items.filter(function (item) {
-            return item.indexOf(query) > 0;
-          });
-
-          $scope.filteredItems = beginningMatches.concat(otherMatches);
-        };
-
-        self.isVisible = function () {
-          return !self.hidden && ($scope.filteredItems.length > 0) && (self.focused || self.mousedOver);
-        };
-
-        // handle updates to parent scope history
-        $scope.$watch('items', function (items) {
-          if (self.query) {
-            self.filterItemsByQuery(self.query);
-          }
-        });
-
-        // watch for changes to the filtered item list
-        $scope.$watch('filteredItems', function (filteredItems) {
-
-          // if list is empty, or active item is missing, unset active item
-          if (!filteredItems.length || !_.contains(filteredItems, self.active)) {
-            self.active = false;
-          }
-        });
-      },
-
-      link: function ($scope, $el, attr) {
-        // should be defined via setInput() method
-        if (!$scope.inputModel) {
-          throw new Error('kbn-typeahead-input must be defined');
+      this.selectPrevious = () => {
+        if (this.selectedIndex !== null && this.selectedIndex > 0) {
+          this.selectedIndex--;
+        } else {
+          this.selectedIndex = this.items.length - 1;
         }
+        this.scrollSelectedIntoView();
+      };
 
-        $scope.$watch('typeahead.isVisible()', function (vis) {
-          $el.toggleClass('visible', vis);
-        });
-      }
-    };
-  });
+      this.selectNext = () => {
+        if (this.selectedIndex !== null && this.selectedIndex < this.items.length - 1) {
+          this.selectedIndex++;
+        } else {
+          this.selectedIndex = 0;
+        }
+        this.scrollSelectedIntoView();
+      };
+
+      this.scrollSelectedIntoView = () => {
+        const parent = $element.find('.typeahead-items')[0];
+        const child = $element.find('.typeahead-item').eq(this.selectedIndex)[0];
+        parent.scrollTop = Math.min(parent.scrollTop, child.offsetTop);
+        parent.scrollTop = Math.max(parent.scrollTop, child.offsetTop + child.offsetHeight - parent.offsetHeight);
+      };
+
+      this.isVisible = () => {
+        // Blur fires before click. If we only checked isFocused, then click events would never fire.
+        const isFocusedOrMousedOver = this.isFocused || this.isMousedOver;
+        return !this.isHidden && this.items && this.items.length > 0 && isFocusedOrMousedOver;
+      };
+
+      this.resetLimit = () => {
+        this.limit = 50;
+      };
+
+      this.increaseLimit = () => {
+        this.limit += 50;
+      };
+
+      this.onKeyDown = (event) => {
+        const { keyCode } = event;
+
+        if (keyCode === ESCAPE) this.isHidden = true;
+
+        if ([TAB, ENTER].includes(keyCode) && !this.hidden && this.selectedIndex !== null) {
+          event.preventDefault();
+          this.submit();
+        } else if (keyCode === UP && this.items.length > 0) {
+          event.preventDefault();
+          this.isHidden = false;
+          this.selectPrevious();
+        } else if (keyCode === DOWN && this.items.length > 0) {
+          event.preventDefault();
+          this.isHidden = false;
+          this.selectNext();
+        } else {
+          this.selectedIndex = null;
+        }
+      };
+
+      this.onKeyPress = () => {
+        this.isHidden = false;
+      };
+
+      this.onItemClick = () => {
+        this.submit();
+        $scope.$broadcast('focus');
+        $scope.$evalAsync(() => this.isHidden = false);
+      };
+
+      this.onFocus = () => {
+        this.isFocused = true;
+        this.isHidden = true;
+        this.resetLimit();
+      };
+
+      this.onBlur = () => {
+        this.isFocused = false;
+      };
+
+      this.onMouseEnter = () => {
+        this.isMousedOver = true;
+      };
+
+      this.onMouseLeave = () => {
+        this.isMousedOver = false;
+      };
+
+      $scope.$watch('typeahead.selectedIndex', (newIndex) => {
+        this.onFocusChange({ $focusedItemID: newIndex !== null ? `${this.elementID}-typeahead-item-${newIndex}` : '' });
+      });
+    }
+  };
 });

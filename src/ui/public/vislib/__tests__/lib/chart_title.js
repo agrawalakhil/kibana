@@ -1,19 +1,38 @@
-var d3 = require('d3');
-var angular = require('angular');
-var _ = require('lodash');
-var $ = require('jquery');
-var ngMock = require('ngMock');
-var expect = require('expect.js');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import d3 from 'd3';
+import _ from 'lodash';
+import ngMock from 'ng_mock';
+import expect from 'expect.js';
+import { VislibLibChartTitleProvider } from '../../lib/chart_title';
+import { VislibVisConfigProvider } from '../../lib/vis_config';
+import '../../../persisted_state';
 
 describe('Vislib ChartTitle Class Test Suite', function () {
-  var ChartTitle;
-  var Data;
-  var chartTitle;
-  var el;
-  var dataObj;
-  var data = {
+  let ChartTitle;
+  let VisConfig;
+  let persistedState;
+  let chartTitle;
+  let el;
+  const data = {
     hits: 621,
-    label: '',
     ordered: {
       date: true,
       interval: 30000,
@@ -22,6 +41,7 @@ describe('Vislib ChartTitle Class Test Suite', function () {
     },
     series: [
       {
+        label: 'Count',
         values: [
           {
             x: 1408734060000,
@@ -71,9 +91,10 @@ describe('Vislib ChartTitle Class Test Suite', function () {
   };
 
   beforeEach(ngMock.module('kibana'));
-  beforeEach(ngMock.inject(function (Private) {
-    ChartTitle = Private(require('ui/vislib/lib/chart_title'));
-    Data = Private(require('ui/vislib/lib/data'));
+  beforeEach(ngMock.inject(function (Private, $injector) {
+    ChartTitle = Private(VislibLibChartTitleProvider);
+    VisConfig = Private(VislibVisConfigProvider);
+    persistedState = new ($injector.get('PersistedState'))();
 
     el = d3.select('body').append('div')
       .attr('class', 'vis-wrapper')
@@ -83,8 +104,13 @@ describe('Vislib ChartTitle Class Test Suite', function () {
       .attr('class', 'chart-title')
       .style('height', '20px');
 
-    dataObj = new Data(data, {});
-    chartTitle = new ChartTitle($('.vis-wrapper')[0], 'rows');
+    const visConfig = new VisConfig({
+      type: 'histogram',
+      title: {
+        'text': 'rows'
+      }
+    }, data, persistedState, el.node());
+    chartTitle = new ChartTitle(visConfig);
   }));
 
   afterEach(function () {
@@ -110,5 +136,4 @@ describe('Vislib ChartTitle Class Test Suite', function () {
       expect(_.isFunction(chartTitle.draw())).to.be(true);
     });
   });
-
 });

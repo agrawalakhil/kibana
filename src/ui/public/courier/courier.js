@@ -1,140 +1,86 @@
-define(function (require) {
-  var errors = require('ui/errors');
-  var _ = require('lodash');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  require('ui/es');
-  require('ui/promises');
-  require('ui/safe_confirm');
-  require('ui/index_patterns');
+import _ from 'lodash';
 
-  require('ui/modules').get('kibana/courier')
-  .service('courier', function ($rootScope, Private, Promise, indexPatterns, Notifier) {
-    function Courier() {
-      var self = this;
+import { timefilter } from 'ui/timefilter';
 
-      var DocSource = Private(require('ui/courier/data_source/doc_source'));
-      var SearchSource = Private(require('ui/courier/data_source/search_source'));
-      var searchStrategy = Private(require('ui/courier/fetch/strategy/search'));
+import '../es';
+import '../index_patterns';
+import { uiModules } from '../modules';
+import { addFatalErrorCallback } from '../notify';
+import '../promises';
 
-      var requestQueue = Private(require('ui/courier/_request_queue'));
-      var errorHandlers = Private(require('ui/courier/_error_handlers'));
+import { searchRequestQueue } from './search_request_queue';
+import { FetchSoonProvider } from './fetch';
+import { SearchPollProvider } from './search_poll';
 
-      var fetch = Private(require('ui/courier/fetch/fetch'));
-      var docLooper = self.docLooper = Private(require('ui/courier/looper/doc'));
-      var searchLooper = self.searchLooper = Private(require('ui/courier/looper/search'));
+uiModules.get('kibana/courier').service('courier', ($rootScope, Private) => {
+  const fetchSoon = Private(FetchSoonProvider);
 
-      // expose some internal modules
-      self.setRootSearchSource = Private(require('ui/courier/data_source/_root_search_source')).set;
+  // This manages the doc fetch interval.
+  const searchPoll = Private(SearchPollProvider);
 
-      self.SavedObject = Private(require('ui/courier/saved_object/saved_object'));
-      self.indexPatterns = indexPatterns;
-      self.redirectWhenMissing = Private(require('ui/courier/_redirect_when_missing'));
-
-      self.DocSource = DocSource;
-      self.SearchSource = SearchSource;
-
-      var HastyRefresh = errors.HastyRefresh;
-
-      /**
-       * update the time between automatic search requests
-       *
-       * @chainable
-       */
-      self.fetchInterval = function (ms) {
-        searchLooper.ms(ms);
-        return this;
-      };
-
-      /**
-       * Start fetching search requests on an interval
-       * @chainable
-       */
-      self.start = function () {
-        searchLooper.start();
-        docLooper.start();
-        return this;
-      };
-
-      /**
-       * Process the pending request queue right now, returns
-       * a promise that resembles the success of the fetch completing,
-       * individual errors are routed to their respective requests.
-       */
-      self.fetch = function () {
-        fetch.fetchQueued(searchStrategy).then(function () {
-          searchLooper.restart();
-        });
-      };
-
-
-      /**
-       * is the currior currently fetching search
-       * results automatically?
-       *
-       * @return {boolean}
-       */
-      self.started = function () {
-        return searchLooper.started();
-      };
-
-
-      /**
-       * stop the courier from fetching more search
-       * results, does not stop vaidating docs.
-       *
-       * @chainable
-       */
-      self.stop = function () {
-        searchLooper.stop();
-        return this;
-      };
-
-
-      /**
-       * create a source object that is a child of this courier
-       *
-       * @param {string} type - the type of Source to create
-       */
-      self.createSource = function (type) {
-        switch (type) {
-          case 'doc':
-            return new DocSource();
-          case 'search':
-            return new SearchSource();
-        }
-      };
-
-      /**
-       * Abort all pending requests
-       * @return {[type]} [description]
-       */
-      self.close = function () {
-        searchLooper.stop();
-        docLooper.stop();
-
-        _.invoke(requestQueue, 'abort');
-
-        if (requestQueue.length) {
-          throw new Error('Aborting all pending requests failed.');
-        }
-      };
-
+  class Courier {
+    constructor() {
       // Listen for refreshInterval changes
-      $rootScope.$watchCollection('timefilter.refreshInterval', function () {
-        var refreshValue = _.get($rootScope, 'timefilter.refreshInterval.value');
-        var refreshPause = _.get($rootScope, 'timefilter.refreshInterval.pause');
-        if (_.isNumber(refreshValue) && !refreshPause) {
-          self.fetchInterval(refreshValue);
+      $rootScope.$listen(timefilter, 'refreshIntervalUpdate', function () {
+        const refreshIntervalMs = _.get(timefilter.getRefreshInterval(), 'value');
+        const isRefreshPaused = _.get(timefilter.getRefreshInterval(), 'pause');
+
+        // Update the time between automatic search requests.
+        searchPoll.setIntervalInMs(refreshIntervalMs);
+
+        if (isRefreshPaused) {
+          searchPoll.pause();
         } else {
-          self.fetchInterval(0);
+          searchPoll.resume();
         }
       });
 
-      var onFatalDefer = Promise.defer();
-      onFatalDefer.promise.then(self.close);
-      Notifier.fatalCallbacks.push(onFatalDefer.resolve);
+      const closeOnFatal = _.once(() => {
+        // If there was a fatal error, then stop future searches. We want to use pause instead of
+        // clearTimer because if the search results come back after the fatal error then we'll
+        // resume polling.
+        searchPoll.pause();
+
+        // And abort all pending requests.
+        searchRequestQueue.abortAll();
+
+        if (searchRequestQueue.getCount()) {
+          throw new Error('Aborting all pending requests failed.');
+        }
+      });
+
+      addFatalErrorCallback(closeOnFatal);
     }
 
-    return new Courier();
-  });
+    /**
+     * Fetch the pending requests.
+     */
+    fetch() {
+      fetchSoon.fetchQueued().then(() => {
+        // Reset the timer using the time that we get this response as the starting point.
+        searchPoll.resetTimer();
+      });
+    }
+  }
+
+  return new Courier();
 });

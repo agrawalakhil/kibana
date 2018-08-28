@@ -4,32 +4,47 @@
 .typeahead {
   position: relative;
 
-  .typeahead-items {
+  .typeahead-popover {
     border: 1px solid;
     border-color: @typeahead-item-border;
     color: @typeahead-item-color;
     background-color: @typeahead-item-bg;
     position: absolute;
+    top: 32px;
     z-index: @zindex-typeahead;
+    box-shadow: 0px 4px 8px rgba(0,0,0,.1);
     width: 100%;
+    border-radius: 4px;
+
+    .typeahead-items {
+      max-height: 500px;
+      overflow-y: auto;
+    }
 
     .typeahead-item {
-      border-bottom: 1px solid;
-      border-bottom-color: @typeahead-item-border;
-      padding: @padding-base-vertical @padding-base-horizontal;
+      height: 32px;
+      line-height: 32px;
+      white-space: nowrap;
+      font-size: 12px;
+      vertical-align: middle;
     }
 
     .typeahead-item:last-child {
       border-bottom: 0px;
+      border-radius: 0 0 4px 4px;
+    }
+
+    .typeahead-item:first-child {
+      border-bottom: 0px;
+      border-radius: 4px 4px 0 0;
     }
 
     .typeahead-item.active {
-      background-color: @typeahead-item-active-bg;
+      background-color: @globalColorLightestGray;
     }
   }
 }
 
-.button-group .typeahead.visible .input-group,
 .inline-form .typeahead.visible .input-group {
   > :first-child {
     .border-bottom-radius(0);

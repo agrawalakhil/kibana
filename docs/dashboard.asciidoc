@@ -1,151 +1,122 @@
 [[dashboard]]
-== Dashboard
+= Dashboard
 
-A Kibana _dashboard_ displays a set of saved visualizations in groups that you can arrange freely. You can save a 
-dashboard to share or reload at a later time.
+[partintro]
+--
+A Kibana _dashboard_ displays a collection of visualizations and searches.
+You can arrange, resize, and edit the dashboard content and then save the dashboard
+so you can share it.
 
-.Sample dashboard
-image:images/NYCTA-Dashboard.jpg[Example dashboard]
+[role="screenshot"]
+image:images/Dashboard_example.png[Example dashboard]
 
-[float]
+--
+
 [[dashboard-getting-started]]
-=== Getting Started
+== Building a Dashboard
 
-You need at least one saved <<visualize, visualization>> to use a dashboard.
+If you haven't yet indexed data into {es} or created an index pattern, 
+you'll be prompted to do so as you follow the steps for creating a dashboard.  
+Or, you can use one of the prebuilt sample data sets, available from the 
+Kibana home page.
 
-[float]
-[[creating-a-new-dashboard]]
-==== Building a New Dashboard
+. In the side navigation, click *Dashboard*.
+. Click *Create new dashboard.*  
+. Click *Add*.
 
-The first time you click the *Dashboard* tab, Kibana displays an empty dashboard.
-
-image:images/NewDashboard.png[New Dashboard screen]
-
-Build your dashboard by adding visualizations. By default, Kibana dashboards use a light color theme. To use a dark color 
-theme instead, click the *Settings* image:images/SettingsButton.jpg[Gear] button and check the *Use dark theme* box.
-
-image:images/darktheme.png[Dark Theme Example]
-
-NOTE: You can change the default theme in the *Advanced* section of the *Settings* tab.
-
-[float]
-[[dash-autorefresh]]
-include::autorefresh.asciidoc[]
-
-[float]
 [[adding-visualizations-to-a-dashboard]]
-==== Adding Visualizations to a Dashboard
+. Use *Add Panels* to add visualizations and saved searches to the dashboard. 
+If you have a large number of visualizations, you can filter the lists. 
++
+[role="screenshot"]
+image:images/Dashboard_add_visualization.png[Example add visualization to dashboard]
 
-To add a visualization to the dashboard, click the *Add Visualization* image:images/AddVis.png[Plus] button in the 
-toolbar panel. Select a saved visualization from the list. You can filter the list of visualizations by typing a filter 
-string into the *Visualization Filter* field.
-
-The visualization you select appears in a _container_ on your dashboard.
-
-NOTE: If you see a message about the container's height or width being too small, <<resizing-containers,resize the 
-container>>.
-
-[float]
 [[saving-dashboards]]
-==== Saving Dashboards
+. When you're finished adding and arranging the panels,
+go to the menu bar and click *Save*.
 
-To save the dashboard, click the *Save Dashboard* button in the toolbar panel, enter a name for the dashboard in the 
-*Save As* field, and click the *Save* button. By default, dashboards store the time period specified in the time filter 
-when you save a dashboard. To disable this behavior, clear the *Store time with dashboard* box before clicking the 
-*Save* button.
+. In *Save Dashboard*, enter a dashboard title and optionally a description. 
 
-[float]
+. To store the time period specified in the time filter, enable *Store time
+with dashboard*.
+
+. Click *Save*.
+
 [[loading-a-saved-dashboard]]
-==== Loading a Saved Dashboard
-
-Click the *Load Saved Dashboard* button to display a list of existing dashboards. The saved dashboard selector includes 
-a text field to filter by dashboard name and a link to the Object Editor for managing your saved dashboards. You can 
-also access the Object Editor by clicking *Settings > Edit Saved Objects*.
+To import, export, and delete dashboards, see <<managing-saved-objects>>.
 
 [float]
-[[sharing-dashboards]]
-==== Sharing Dashboards
+=== Changing the Color Theme ===
 
-You can share dashboards with other users. You can share a direct link to the Kibana dashboard or embed the dashboard 
-in your Web page.
+By default, Kibana dashboards use the light color theme. To use the dark color theme:
 
-NOTE: A user must have Kibana access in order to view embedded dashboards.
+. Go to the menu bar and click *Edit*. 
+. Click *Options* in the menu bar.
+. Select *Use dark theme*. 
 
-Click the *Share* button to display HTML code to embed the dashboard in another Web page, along with a direct link to 
-the dashboard. You can select the text in either option to copy the code or the link to your clipboard.
+To set the dark theme as the default, go to *Management > Advanced Settings*. 
+Scroll down to *Dashboard* and toggle *Dark Theme* to *On*.
 
-[float]
-[[embedding-dashboards]]
-==== Embedding Dashboards
-
-To embed a dashboard, copy the embed code from the _Share_ display into your external web application.
-
-[float]
 [[customizing-your-dashboard]]
-=== Customizing Dashboard Elements
+== Arranging Dashboard Elements
 
-The visualizations in your dashboard are stored in resizable _containers_ that you can arrange on the dashboard. This 
-section discusses customizing these containers.
+The visualizations and searches in a dashboard are stored in panels that you can move,
+resize, edit, and delete.  To start editing, click *Edit* in the menu bar.
 
-[float]
 [[moving-containers]]
-==== Moving Containers
+* To move a panel, click and hold the panel header and drag to the new location.
 
-Click and hold a container's header to move the container around the dashboard. Other containers will shift as needed 
-to make room for the moving container. Release the mouse button to confirm the container's new location.
-
-[float]
 [[resizing-containers]]
-==== Resizing Containers
+* To resize a panel, click the resize control on the lower right and drag
+to the new dimensions.
 
-Move the cursor to the bottom right corner of the container until the cursor changes to point at the corner. After the 
-cursor changes, click and drag the corner of the container to change the container's size. Release the mouse button to 
-confirm the new container size.
-
-[float]
 [[removing-containers]]
-==== Removing Containers
+Additional commands for managing the panel and its contents 
+are in the gear menu in the upper right.
 
-Click the *x* icon at the top right corner of a container to remove that container from the dashboard. Removing a 
-container from a dashboard does not delete the saved visualization in that container.
+[role="screenshot"]
+image:images/Dashboard_Resize_Menu.png[Example dashboard]
 
-[float]
+NOTE: Deleting a panel from a
+dashboard does *not* delete the saved visualization or search.
+
 [[viewing-detailed-information]]
-==== Viewing Detailed Information
+== Inspecting a Visualization from the Dashboard
 
-To display the raw data behind the visualization, click the bar at the bottom of the container. Tabs with detailed 
-information about the raw data replace the visualization, as in this example:
+Many visualizations allow you to inspect the data and requests behind the 
+visualization. 
 
-.Table
-A representation of the underlying data, presented as a paginated data grid. You can sort the items 
-in the table by clicking on the table headers at the top of each column.
-image:images/NYCTA-Table.jpg[]
+In the dashboard, expand the visualization's panel menu (or gear menu if in 
+*Edit* mode) and select *Inspect*.
 
-.Request
-The raw request used to query the server, presented in JSON format.
-image:images/NYCTA-Request.jpg[]
+The initial view shows the underlying data for the visualization. To view the 
+requests that were made for the visualization, choose *Requests* from the *View* 
+menu.
 
-.Response
-The raw response from the server, presented in JSON format.
-image:images/NYCTA-Response.jpg[]
+The views you'll see depend on the element that you inspect.
 
-.Statistics
-A summary of the statistics related to the request and the response, presented as a data grid. The data 
-grid includes the query duration, the request duration, the total number of records found on the server, and the 
-index pattern used to make the query.
-image:images/NYCTA-Statistics.jpg[]
+[role="screenshot"]
+image:images/Dashboard_visualization_data.png[Example of visualization data]
 
-To export the raw data behind the visualization as a comma-separated-values (CSV) file, click on either the
-*Raw* or *Formatted* links at the bottom of any of the detailed information tabs. A raw export contains the data as it 
-is stored in Elasticsearch. A formatted export contains the results of any applicable Kibana [field formatters].
 
-[float]
-[[changing-the-visualization]]
-=== Changing the Visualization
 
-Click the _Edit_ button image:images/EditVis.png[Pencil button] at the top right of a container to open the 
-visualization in the <<visualize,Visualize>> page.
+[[sharing-dashboards]]
+== Sharing a Dashboard
 
-[float]
-[[dashboard-filters]]
-include::filter-pinning.asciidoc[]
+You can either share a direct link to a Kibana dashboard,
+or embed the dashboard in a web page. Users must have Kibana access
+to view an embedded dashboard.
+
+[[embedding-dashboards]]
+
+. Open the dashboard you want to share.
+. In the menu bar, click *Share*.
+. Copy the link you want to share or the iframe you want to embed. You can
+share the live dashboard or a static snapshot of the current point in time.
+
+TIP: You can create a link to a dashboard by title by doing this: +
+`${domain}/${basepath?}/app/kibana#/dashboards?title=${yourdashboardtitle}`
+
+TIP: When sharing a link to a dashboard snapshot, use the *Short URL*. Snapshot
+URLs are long and can be problematic for Internet Explorer and other
+tools.  To create a short URL, you must have write access to {kib}.

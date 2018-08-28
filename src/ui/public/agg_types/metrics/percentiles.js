@@ -1,53 +1,64 @@
-define(function (require) {
-  return function AggTypeMetricPercentilesProvider(Private) {
-    var _ = require('lodash');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-    var MetricAggType = Private(require('ui/agg_types/metrics/MetricAggType'));
-    var getResponseAggConfigClass = Private(require('ui/agg_types/metrics/getResponseAggConfigClass'));
-    var ordinalSuffix = require('ui/utils/ordinal_suffix');
-    var fieldFormats = Private(require('ui/registry/field_formats'));
+import { ordinalSuffix } from '../../utils/ordinal_suffix';
+import percentsEditor from '../controls/percentiles.html';
+import '../../number_list';
+import { MetricAggType } from './metric_agg_type';
+import { getResponseAggConfigClass } from './get_response_agg_config_class';
+import { getPercentileValue } from './percentiles_get_value';
 
-    var percentsEditor = require('ui/agg_types/controls/percentiles.html');
-    // required by the percentiles editor
-    require('ui/number_list');
+const valueProps = {
+  makeLabel: function () {
+    const label = this.params.customLabel || this.getFieldDisplayName();
+    return ordinalSuffix(this.key) + ' percentile of ' + label;
+  }
+};
 
-    var valueProps = {
-      makeLabel: function () {
-        return ordinalSuffix(this.key) + ' percentile of ' + this.fieldDisplayName();
+export const percentilesMetricAgg = new MetricAggType({
+  name: 'percentiles',
+  title: 'Percentiles',
+  makeLabel: function (agg) {
+    return 'Percentiles of ' + agg.getFieldDisplayName();
+  },
+  params: [
+    {
+      name: 'field',
+      filterFieldTypes: 'number'
+    },
+    {
+      name: 'percents',
+      editor: percentsEditor,
+      default: [1, 5, 25, 50, 75, 95, 99]
+    },
+    {
+      write(agg, output) {
+        output.params.keyed = false;
       }
-    };
+    }
+  ],
+  getResponseAggs: function (agg) {
+    const ValueAggConfig = getResponseAggConfigClass(agg, valueProps);
 
-    return new MetricAggType({
-      name: 'percentiles',
-      title: 'Percentiles',
-      makeLabel: function (agg) {
-        return 'Percentiles of ' + agg.fieldDisplayName();
-      },
-      params: [
-        {
-          name: 'field',
-          filterFieldTypes: 'number'
-        },
-        {
-          name: 'percents',
-          editor: percentsEditor,
-          default: [1, 5, 25, 50, 75, 95, 99]
-        }
-      ],
-      getResponseAggs: function (agg) {
-        var ValueAggConfig = getResponseAggConfigClass(agg, valueProps);
-
-        return agg.params.percents.map(function (percent) {
-          return new ValueAggConfig(percent);
-        });
-      },
-      getValue: function (agg, bucket) {
-        // percentiles for 1, 5, and 10 will come back as 1.0, 5.0, and 10.0 so we
-        // parse the keys and respond with the value that matches
-        return _.find(bucket[agg.parentId].values, function (value, key) {
-          return agg.key === parseFloat(key);
-        });
-      }
+    return agg.params.percents.map(function (percent) {
+      return new ValueAggConfig(percent);
     });
-  };
+  },
+  getValue: getPercentileValue
 });

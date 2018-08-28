@@ -1,73 +1,91 @@
-define(function (require) {
-  var _ = require('lodash');
-  var angular = require('angular');
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-  require('ui/modules').get('kibana')
+import angular from 'angular';
+import { uiModules } from '../modules';
+
+uiModules.get('kibana')
   .config(function ($provide) {
 
     function strictEquality(a, b) {
-      // are the values equal? or, are they both NaN?
+    // are the values equal? or, are they both NaN?
       return a === b || (a !== a && b !== b);
     }
 
     function errorNotAssignable(source, target) {
       throw Error('Unable to accept change to bound $scope property "' + source + '"' +
-        ' because source expression "' + target + '" is not assignable!');
+      ' because source expression "' + target + '" is not assignable!');
     }
 
     $provide.decorator('$rootScope', function ($delegate, $parse) {
-      /**
-       * Two-way bind a value from scope to another property on scope. This
-       * allow values on scope that work like they do in an isolate scope, but
-       * without requiring one.
-       *
-       * @param  {expression} to - the location on scope to bind to
-       * @param  {expression} from - the location on scope to bind from
-       * @param  {Scope} $sourceScope - the scope to read "from" expression from
-       * @return {undefined}
-       */
+    /**
+     * Two-way bind a value from scope to another property on scope. This
+     * allow values on scope that work like they do in an isolate scope, but
+     * without requiring one.
+     *
+     * @param  {expression} to - the location on scope to bind to
+     * @param  {expression} from - the location on scope to bind from
+     * @param  {Scope} $sourceScope - the scope to read "from" expression from
+     * @return {undefined}
+     */
       $delegate.constructor.prototype.$bind = function (to, from, $sourceScope) {
-        var $source = $sourceScope || this.$parent;
-        var $target = this;
+        const $source = $sourceScope || this.$parent;
+        const $target = this;
 
         // parse expressions
-        var $to = $parse(to);
+        const $to = $parse(to);
         if (!$to.assign) errorNotAssignable(to, from);
-        var $from = $parse(from);
+        const $from = $parse(from);
 
         // bind scopes to expressions
-        var getTarget = function () { return $to($target); };
-        var setTarget = function (v) { return $to.assign($target, v); };
-        var getSource = function () { return $from($source); };
-        var setSource = function (v) { return $from.assignOrFail($source, v); };
+        const getTarget = function () { return $to($target); };
+        const setTarget = function (v) { return $to.assign($target, v); };
+        const getSource = function () { return $from($source); };
+        const setSource = function (v) { return $from.assignOrFail($source, v); };
 
         // to support writing from the child to the parent we need to know
         // which source has changed. Track the source value and anytime it
         // changes (even if the target value changed too) push from source
         // to target. If the source hasn't changed then the change is from
         // the target and push accordingly
-        var lastSourceVal = getSource();
+        let lastSourceVal = getSource();
 
         $from.assignOrFail = $from.assign || function () {
-          // revert the change and throw an error, child writes aren't supported
+        // revert the change and throw an error, child writes aren't supported
           $to($target, lastSourceVal = $from($source));
           errorNotAssignable(from, to);
         };
 
         // if we are syncing down a literal, then we use loose equality check
-        var strict = !$from.literal;
-        var compare = strict ? strictEquality : angular.equals;
+        const strict = !$from.literal;
+        const compare = strict ? strictEquality : angular.equals;
 
 
         // push the initial value down, start off in sync
         setTarget(lastSourceVal);
 
         $target.$watch(function () {
-          var sourceVal = getSource();
-          var targetVal = getTarget();
+          const sourceVal = getSource();
+          const targetVal = getTarget();
 
-          var outOfSync = !compare(sourceVal, targetVal);
-          var sourceChanged = outOfSync && !compare(sourceVal, lastSourceVal);
+          const outOfSync = !compare(sourceVal, targetVal);
+          const sourceChanged = outOfSync && !compare(sourceVal, lastSourceVal);
 
           if (sourceChanged) setTarget(sourceVal);
           else if (outOfSync) setSource(targetVal);
@@ -79,4 +97,3 @@ define(function (require) {
       return $delegate;
     });
   });
-});

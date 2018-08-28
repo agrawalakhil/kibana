@@ -1,37 +1,61 @@
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-var _ = require('lodash');
-var fixtures = require('fixtures/fake_hierarchical_data');
-var sinon = require('auto-release-sinon');
-var expect = require('expect.js');
-var ngMock = require('ngMock');
 
-var Vis;
-var Notifier;
-var AggConfigs;
-var indexPattern;
-var buildHierarchicalData;
+import _ from 'lodash';
+import fixtures from 'fixtures/fake_hierarchical_data';
+import sinon from 'sinon';
+import expect from 'expect.js';
+import ngMock from 'ng_mock';
+import { toastNotifications } from 'ui/notify';
+import { VisProvider } from '../../../vis';
+import FixturesStubbedLogstashIndexPatternProvider from 'fixtures/stubbed_logstash_index_pattern';
+import { BuildHierarchicalDataProvider } from '../build_hierarchical_data';
+
+let Vis;
+let Notifier;
+let indexPattern;
+let buildHierarchicalData;
 
 describe('buildHierarchicalData', function () {
+  const sandbox = sinon.createSandbox();
 
   beforeEach(ngMock.module('kibana'));
   beforeEach(ngMock.inject(function (Private, $injector) {
     // stub the error method before requiring vis causes Notifier#error to be bound
     Notifier = $injector.get('Notifier');
-    sinon.stub(Notifier.prototype, 'error');
+    sandbox.stub(Notifier.prototype, 'error');
 
-    Vis = Private(require('ui/Vis'));
-    AggConfigs = Private(require('ui/Vis/AggConfigs'));
-    indexPattern = Private(require('fixtures/stubbed_logstash_index_pattern'));
-    buildHierarchicalData = Private(require('ui/agg_response/hierarchical/build_hierarchical_data'));
+    Vis = Private(VisProvider);
+    indexPattern = Private(FixturesStubbedLogstashIndexPatternProvider);
+    buildHierarchicalData = Private(BuildHierarchicalDataProvider);
   }));
 
+  afterEach(function () {
+    sandbox.restore();
+  });
 
   describe('metric only', function () {
-    var vis;
-    var results;
+    let vis;
+    let results;
 
     beforeEach(function () {
-      var id = 1;
       vis = new Vis(indexPattern, {
         type: 'pie',
         aggs: [
@@ -40,11 +64,10 @@ describe('buildHierarchicalData', function () {
       });
       vis.aggs[0].id = 'agg_1';
       results = buildHierarchicalData(vis, fixtures.metricOnly);
-
     });
 
     it('should set the slices with one child to a consistent label', function () {
-      var checkLabel = 'Count';
+      const checkLabel = 'Average bytes';
       expect(results).to.have.property('slices');
       expect(results.slices).to.have.property('children');
       expect(results.slices.children).to.have.length(1);
@@ -63,54 +86,54 @@ describe('buildHierarchicalData', function () {
   describe('rows and columns', function () {
 
     it('should set the rows', function () {
-      var id = 1;
-      var vis = new Vis(indexPattern, {
+      let id = 1;
+      const vis = new Vis(indexPattern, {
         type: 'pie',
         aggs: [
           { type: 'avg', schema: 'metric', params: { field: 'bytes' } },
-          { type: 'terms', schema: 'split', params: { field: 'extension', row: true }},
-          { type: 'terms', schema: 'segment', params: { field: 'machine.os' }},
-          { type: 'terms', schema: 'segment', params: { field: 'geo.src' }}
+          { type: 'terms', schema: 'split', params: { field: 'extension', row: true } },
+          { type: 'terms', schema: 'segment', params: { field: 'machine.os' } },
+          { type: 'terms', schema: 'segment', params: { field: 'geo.src' } }
         ]
       });
       // We need to set the aggs to a known value.
       _.each(vis.aggs, function (agg) { agg.id = 'agg_' + id++; });
-      var results = buildHierarchicalData(vis, fixtures.threeTermBuckets);
+      const results = buildHierarchicalData(vis, fixtures.threeTermBuckets);
       expect(results).to.have.property('rows');
     });
 
     it('should set the columns', function () {
-      var id = 1;
-      var vis = new Vis(indexPattern, {
+      let id = 1;
+      const vis = new Vis(indexPattern, {
         type: 'pie',
         aggs: [
           { type: 'avg', schema: 'metric', params: { field: 'bytes' } },
-          { type: 'terms', schema: 'split', params: { field: 'extension', row: false }},
-          { type: 'terms', schema: 'segment', params: { field: 'machine.os' }},
-          { type: 'terms', schema: 'segment', params: { field: 'geo.src' }}
+          { type: 'terms', schema: 'split', params: { field: 'extension', row: false } },
+          { type: 'terms', schema: 'segment', params: { field: 'machine.os' } },
+          { type: 'terms', schema: 'segment', params: { field: 'geo.src' } }
         ]
       });
       // We need to set the aggs to a known value.
       _.each(vis.aggs, function (agg) { agg.id = 'agg_' + id++; });
-      var results = buildHierarchicalData(vis, fixtures.threeTermBuckets);
+      const results = buildHierarchicalData(vis, fixtures.threeTermBuckets);
       expect(results).to.have.property('columns');
     });
 
   });
 
   describe('threeTermBuckets', function () {
-    var vis;
-    var results;
+    let vis;
+    let results;
 
     beforeEach(function () {
-      var id = 1;
+      let id = 1;
       vis = new Vis(indexPattern, {
         type: 'pie',
         aggs: [
           { type: 'avg', schema: 'metric', params: { field: 'bytes' } },
-          { type: 'terms', schema: 'split', params: { field: 'extension' }},
-          { type: 'terms', schema: 'segment', params: { field: 'machine.os' }},
-          { type: 'terms', schema: 'segment', params: { field: 'geo.src' }}
+          { type: 'terms', schema: 'split', params: { field: 'extension' } },
+          { type: 'terms', schema: 'segment', params: { field: 'machine.os' } },
+          { type: 'terms', schema: 'segment', params: { field: 'geo.src' } }
         ]
       });
       // We need to set the aggs to a known value.
@@ -141,11 +164,11 @@ describe('buildHierarchicalData', function () {
   });
 
   describe('oneHistogramBucket', function () {
-    var vis;
-    var results;
+    let vis;
+    let results;
 
     beforeEach(function () {
-      var id = 1;
+      let id = 1;
       vis = new Vis(indexPattern, {
         type: 'pie',
         aggs: [
@@ -153,7 +176,7 @@ describe('buildHierarchicalData', function () {
             type: 'count',
             schema: 'metric'
           },
-          { type: 'histogram', schema: 'segment', params: { field: 'bytes', interval: 8192 }}
+          { type: 'histogram', schema: 'segment', params: { field: 'bytes', interval: 8192 } }
         ]
       });
       // We need to set the aggs to a known value.
@@ -173,11 +196,11 @@ describe('buildHierarchicalData', function () {
   });
 
   describe('oneRangeBucket', function () {
-    var vis;
-    var results;
+    let vis;
+    let results;
 
     beforeEach(function () {
-      var id = 1;
+      let id = 1;
       vis = new Vis(indexPattern, {
         type: 'pie',
         aggs: [
@@ -214,11 +237,11 @@ describe('buildHierarchicalData', function () {
   });
 
   describe('oneFilterBucket', function () {
-    var vis;
-    var results;
+    let vis;
+    let results;
 
     beforeEach(function () {
-      var id = 1;
+      let id = 1;
       vis = new Vis(indexPattern, {
         type: 'pie',
         aggs: [
@@ -228,8 +251,8 @@ describe('buildHierarchicalData', function () {
             schema: 'segment',
             params: {
               filters: [
-                { input: { query: { query_string: { query: '_type:apache' } } } },
-                { input: { query: { query_string: { query: '_type:nginx' } } } }
+                { input: { query: { query_string: { query: 'type:apache' } } } },
+                { input: { query: { query_string: { query: 'type:nginx' } } } }
               ]
             }
           }
@@ -250,11 +273,14 @@ describe('buildHierarchicalData', function () {
   });
 
   describe('oneFilterBucket that is a split', function () {
-    var vis;
-    var results;
+    let vis;
+    let results;
 
     beforeEach(function () {
-      var id = 1;
+      // Clear existing toasts.
+      toastNotifications.list.splice(0);
+
+      let id = 1;
       vis = new Vis(indexPattern, {
         type: 'pie',
         aggs: [
@@ -264,8 +290,8 @@ describe('buildHierarchicalData', function () {
             schema: 'split',
             params: {
               filters: [
-                { input: { query: { query_string: { query: '_type:apache' } } } },
-                { input: { query: { query_string: { query: '_type:nginx' } } } }
+                { input: { query: { query_string: { query: 'type:apache' } } } },
+                { input: { query: { query_string: { query: 'type:nginx' } } } }
               ]
             }
           }
@@ -277,10 +303,11 @@ describe('buildHierarchicalData', function () {
     });
 
     it('should set the hits attribute for the results', function () {
-      var errCall = Notifier.prototype.error.getCall(0);
-      expect(errCall).to.be.ok();
-      expect(errCall.args[0]).to.contain('not supported');
-
+      // Ideally, buildHierarchicalData shouldn't be tightly coupled to toastNotifications. Instead,
+      // it should notify its consumer of this error and the consumer should be responsible for
+      // notifying the user. This test verifies the side effect of the error until we can remove
+      // this coupling.
+      expect(toastNotifications.list).to.have.length(1);
       expect(results).to.have.property('slices');
       expect(results).to.have.property('names');
       expect(results.names).to.have.length(2);
